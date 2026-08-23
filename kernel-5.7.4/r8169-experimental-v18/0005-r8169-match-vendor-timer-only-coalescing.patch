@@ -1,0 +1,12 @@
+diff --git a/drivers/net/ethernet/realtek/r8169_main.c b/drivers/net/ethernet/realtek/r8169_main.c
+--- a/drivers/net/ethernet/realtek/r8169_main.c
++++ b/drivers/net/ethernet/realtek/r8169_main.c
+@@ -3863,7 +3863,7 @@ static void rtl_hw_start_8168(struct rtl8169_private *tp)
+ 	tp->cp_cmd &= ~INTT_MASK;
+ 	if (tp->mac_version == RTL_GIGA_MAC_VER_35 ||
+ 	    tp->mac_version == RTL_GIGA_MAC_VER_36) {
+-		tp->cp_cmd |= 1;
++		tp->cp_cmd |= PktCntrDisable | 1;
+ 		intr_mitigate = 0x5151;
+ 	}
+ 

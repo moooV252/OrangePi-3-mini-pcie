@@ -1,0 +1,3021 @@
+diff --git a/u-boot-el1-hyp/Documentation/conf.py b/u-boot-el1-hyp/Documentation/conf.py
+index 168c31346..3e91b9bfe 100644
+--- a/u-boot-el1-hyp/Documentation/conf.py
++++ b/u-boot-el1-hyp/Documentation/conf.py
+@@ -512,7 +512,7 @@ epub_exclude_files = ['search.html']
+ # multiple PDF files here actually tries to get the cross-referencing right
+ # *between* PDF files.
+ pdf_documents = [
+-    ('uboot-documentation', u'U-Boot', u'U-Boot', u'J. Random Bozo'),
++    ('uboot-documentation', 'U-Boot', 'U-Boot', 'J. Random Bozo'),
+ ]
+ 
+ # kernel-doc extension configuration for running Sphinx directly (e.g. by Read
+diff --git a/u-boot-el1-hyp/Documentation/sphinx/cdomain.py b/u-boot-el1-hyp/Documentation/sphinx/cdomain.py
+index cf13ff3a6..4c1168059 100644
+--- a/u-boot-el1-hyp/Documentation/sphinx/cdomain.py
++++ b/u-boot-el1-hyp/Documentation/sphinx/cdomain.py
+@@ -1,6 +1,6 @@
+ # -*- coding: utf-8; mode: python -*-
+ # pylint: disable=W0141,C0113,C0103,C0325
+-u"""
++"""
+     cdomain
+     ~~~~~~~
+ 
+@@ -66,7 +66,7 @@ class CObject(Base_CObject):
+     }
+ 
+     def handle_func_like_macro(self, sig, signode):
+-        u"""Handles signatures of function-like macros.
++        """Handles signatures of function-like macros.
+ 
+         If the objtype is 'function' and the the signature ``sig`` is a
+         function-like macro, the name of the macro is returned. Otherwise
+diff --git a/u-boot-el1-hyp/Documentation/sphinx/kernel_include.py b/u-boot-el1-hyp/Documentation/sphinx/kernel_include.py
+index f523aa68a..338afdad1 100755
+--- a/u-boot-el1-hyp/Documentation/sphinx/kernel_include.py
++++ b/u-boot-el1-hyp/Documentation/sphinx/kernel_include.py
+@@ -2,7 +2,7 @@
+ # -*- coding: utf-8; mode: python -*-
+ # pylint: disable=R0903, C0330, R0914, R0912, E0401
+ 
+-u"""
++"""
+     kernel-include
+     ~~~~~~~~~~~~~~
+ 
+@@ -56,7 +56,7 @@ def setup(app):
+ class KernelInclude(Include):
+ # ==============================================================================
+ 
+-    u"""KernelInclude (``kernel-include``) directive"""
++    """KernelInclude (``kernel-include``) directive"""
+ 
+     def run(self):
+         path = os.path.realpath(
+diff --git a/u-boot-el1-hyp/Documentation/sphinx/kerneldoc.py b/u-boot-el1-hyp/Documentation/sphinx/kerneldoc.py
+index fbedcc394..acf3728a5 100644
+--- a/u-boot-el1-hyp/Documentation/sphinx/kerneldoc.py
++++ b/u-boot-el1-hyp/Documentation/sphinx/kerneldoc.py
+@@ -24,7 +24,7 @@
+ # Authors:
+ #    Jani Nikula <jani.nikula@intel.com>
+ #
+-# Please make sure this works on both python2 and python3.
++# Please make sure this works on python3.
+ #
+ 
+ import codecs
+diff --git a/u-boot-el1-hyp/Documentation/sphinx/kfigure.py b/u-boot-el1-hyp/Documentation/sphinx/kfigure.py
+index b97228d2c..89f5c1ade 100644
+--- a/u-boot-el1-hyp/Documentation/sphinx/kfigure.py
++++ b/u-boot-el1-hyp/Documentation/sphinx/kfigure.py
+@@ -1,6 +1,6 @@
+ # -*- coding: utf-8; mode: python -*-
+ # pylint: disable=C0103, R0903, R0912, R0915
+-u"""
++"""
+     scalable figure and image handling
+     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ 
+@@ -65,7 +65,7 @@ PY3 = sys.version_info[0] == 3
+ if PY3:
+     _unicode = str
+ else:
+-    _unicode = unicode
++    _unicode = str
+ 
+ # Get Sphinx version
+ major, minor, patch = sphinx.version_info[:3]
+@@ -165,7 +165,7 @@ def setup(app):
+ 
+ 
+ def setupTools(app):
+-    u"""
++    """
+     Check available build tools and log some *verbose* messages.
+ 
+     This function is called once, when the builder is initiated.
+@@ -342,7 +342,7 @@ class kernel_image(nodes.image):
+     pass
+ 
+ class KernelImage(images.Image):
+-    u"""KernelImage directive
++    """KernelImage directive
+ 
+     Earns everything from ``.. image::`` directive, except *remote URI* and
+     *glob* pattern. The KernelImage wraps a image node into a
+@@ -378,7 +378,7 @@ class kernel_figure(nodes.figure):
+     """Node for ``kernel-figure`` directive."""
+ 
+ class KernelFigure(Figure):
+-    u"""KernelImage directive
++    """KernelImage directive
+ 
+     Earns everything from ``.. figure::`` directive, except *remote URI* and
+     *glob* pattern.  The KernelFigure wraps a figure node into a kernel_figure
+@@ -454,7 +454,7 @@ class kernel_render(nodes.General, nodes.Inline, nodes.Element):
+     pass
+ 
+ class KernelRender(Figure):
+-    u"""KernelRender directive
++    """KernelRender directive
+ 
+     Render content by external tool.  Has all the options known from the
+     *figure*  directive, plus option ``caption``.  If ``caption`` has a
+@@ -480,10 +480,10 @@ class KernelRender(Figure):
+     def build_node(self):
+ 
+         srclang = self.arguments[0].strip()
+-        if srclang not in RENDER_MARKUP_EXT.keys():
++        if srclang not in list(RENDER_MARKUP_EXT.keys()):
+             return [self.state_machine.reporter.warning(
+                 'Unknown source language "%s", use one of: %s.' % (
+-                    srclang, ",".join(RENDER_MARKUP_EXT.keys())),
++                    srclang, ",".join(list(RENDER_MARKUP_EXT.keys()))),
+                 line=self.lineno)]
+ 
+         code = '\n'.join(self.content)
+@@ -511,7 +511,7 @@ class KernelRender(Figure):
+             caption_node.line = parsed[0].line
+ 
+             figure_node = nodes.figure('', node)
+-            for k,v in self.options.items():
++            for k,v in list(self.options.items()):
+                 figure_node[k] = v
+             figure_node += caption_node
+ 
+diff --git a/u-boot-el1-hyp/Documentation/sphinx/load_config.py b/u-boot-el1-hyp/Documentation/sphinx/load_config.py
+index 301a21aa4..545e4ddc6 100644
+--- a/u-boot-el1-hyp/Documentation/sphinx/load_config.py
++++ b/u-boot-el1-hyp/Documentation/sphinx/load_config.py
+@@ -9,7 +9,7 @@ from sphinx.util.pycompat import execfile_
+ def loadConfig(namespace):
+ # ------------------------------------------------------------------------------
+ 
+-    u"""Load an additional configuration file into *namespace*.
++    """Load an additional configuration file into *namespace*.
+ 
+     The name of the configuration file is taken from the environment
+     ``SPHINX_CONF``. The external configuration file extends (or overwrites) the
+diff --git a/u-boot-el1-hyp/Documentation/sphinx/rstFlatTable.py b/u-boot-el1-hyp/Documentation/sphinx/rstFlatTable.py
+index 25feb0d35..2e12ec001 100755
+--- a/u-boot-el1-hyp/Documentation/sphinx/rstFlatTable.py
++++ b/u-boot-el1-hyp/Documentation/sphinx/rstFlatTable.py
+@@ -2,7 +2,7 @@
+ # -*- coding: utf-8; mode: python -*-
+ # pylint: disable=C0330, R0903, R0912
+ 
+-u"""
++"""
+     flat-table
+     ~~~~~~~~~~
+ 
+@@ -62,8 +62,8 @@ PY2 = sys.version_info[0] == 2
+ 
+ if PY3:
+     # pylint: disable=C0103, W0622
+-    unicode     = str
+-    basestring  = str
++    str     = str
++    str  = str
+ 
+ # ==============================================================================
+ def setup(app):
+@@ -111,7 +111,7 @@ class colSpan(nodes.General, nodes.Element): pass # pylint: disable=C0103,C0321
+ class FlatTable(Table):
+ # ==============================================================================
+ 
+-    u"""FlatTable (``flat-table``) directive"""
++    """FlatTable (``flat-table``) directive"""
+ 
+     option_spec = {
+         'name': directives.unchanged
+@@ -147,7 +147,7 @@ class FlatTable(Table):
+ class ListTableBuilder(object):
+ # ==============================================================================
+ 
+-    u"""Builds a table from a double-stage list"""
++    """Builds a table from a double-stage list"""
+ 
+     def __init__(self, directive):
+         self.directive = directive
+@@ -224,7 +224,7 @@ class ListTableBuilder(object):
+         raise SystemMessagePropagation(error)
+ 
+     def parseFlatTableNode(self, node):
+-        u"""parses the node from a :py:class:`FlatTable` directive's body"""
++        """parses the node from a :py:class:`FlatTable` directive's body"""
+ 
+         if len(node) != 1 or not isinstance(node[0], nodes.bullet_list):
+             self.raiseError(
+@@ -237,7 +237,7 @@ class ListTableBuilder(object):
+         self.roundOffTableDefinition()
+ 
+     def roundOffTableDefinition(self):
+-        u"""Round off the table definition.
++        """Round off the table definition.
+ 
+         This method rounds off the table definition in :py:member:`rows`.
+ 
+diff --git a/u-boot-el1-hyp/Makefile b/u-boot-el1-hyp/Makefile
+index aedc2ea4d..66aa4221e 100644
+--- a/u-boot-el1-hyp/Makefile
++++ b/u-boot-el1-hyp/Makefile
+@@ -366,7 +366,6 @@ YACC		= bison
+ AWK		= awk
+ PERL		= perl
+ PYTHON		?= python
+-PYTHON2		= python2
+ PYTHON3		= python3
+ DTC		?= $(objtree)/scripts/dtc/dtc
+ CHECK		= sparse
+@@ -394,7 +393,7 @@ export VERSION PATCHLEVEL SUBLEVEL UBOOTRELEASE UBOOTVERSION
+ export ARCH CPU BOARD VENDOR SOC CPUDIR BOARDDIR
+ export CONFIG_SHELL HOSTCC HOSTCFLAGS HOSTLDFLAGS CROSS_COMPILE AS LD CC
+ export CPP AR NM LDR STRIP OBJCOPY OBJDUMP
+-export MAKE LEX YACC AWK PERL PYTHON PYTHON2 PYTHON3
++export MAKE LEX YACC AWK PERL PYTHON PYTHON3
+ export HOSTCXX HOSTCXXFLAGS CHECK CHECKFLAGS DTC DTC_FLAGS
+ 
+ export KBUILD_CPPFLAGS NOSTDINC_FLAGS UBOOTINCLUDE OBJCOPYFLAGS LDFLAGS
+diff --git a/u-boot-el1-hyp/arch/arm/mach-rockchip/make_fit_atf.py b/u-boot-el1-hyp/arch/arm/mach-rockchip/make_fit_atf.py
+index d1faff195..92381ee69 100755
+--- a/u-boot-el1-hyp/arch/arm/mach-rockchip/make_fit_atf.py
++++ b/u-boot-el1-hyp/arch/arm/mach-rockchip/make_fit_atf.py
+@@ -180,17 +180,17 @@ def get_bl31_segments_info(bl31_file_name):
+         bl31 = ELFFile(bl31_file)
+ 
+         num = bl31.num_segments()
+-        print('Number of Segments : %d' % bl31.num_segments())
++        print(('Number of Segments : %d' % bl31.num_segments()))
+         for i in range(num):
+-            print('Segment %d' % i)
++            print(('Segment %d' % i))
+             seg = bl31.get_segment(i)
+             ptype = seg[ELF_SEG_P_TYPE]
+             poffset = seg[ELF_SEG_P_OFFSET]
+             pmemsz = seg[ELF_SEG_P_MEMSZ]
+             pfilesz = seg[ELF_SEG_P_FILESZ]
+-            print('type: %s\nfilesz: %08x\nmemsz: %08x\noffset: %08x' % (ptype, pfilesz, pmemsz, poffset))
++            print(('type: %s\nfilesz: %08x\nmemsz: %08x\noffset: %08x' % (ptype, pfilesz, pmemsz, poffset)))
+             paddr = seg[ELF_SEG_P_PADDR]
+-            print('paddr: %08x' % paddr)
++            print(('paddr: %08x' % paddr))
+ 
+ def main():
+     uboot_elf="./u-boot"
+diff --git a/u-boot-el1-hyp/board/synopsys/axs10x/headerize-axs.py b/u-boot-el1-hyp/board/synopsys/axs10x/headerize-axs.py
+index fa6aaf350..cec45d538 100644
+--- a/u-boot-el1-hyp/board/synopsys/axs10x/headerize-axs.py
++++ b/u-boot-el1-hyp/board/synopsys/axs10x/headerize-axs.py
+@@ -8,11 +8,11 @@ from elftools.elf.elffile import ELFFile
+ def usage(exit_code):
+     print("typical usage:")
+     print("AXS101:")
+-    print(sys.argv[0] + \
+-        " --header-type v1 --arc-id 0x434 --spi-flash-offset 0x0 --image u-boot.bin --elf u-boot")
++    print((sys.argv[0] + \
++        " --header-type v1 --arc-id 0x434 --spi-flash-offset 0x0 --image u-boot.bin --elf u-boot"))
+     print("AXS103:")
+-    print(sys.argv[0] + \
+-        " --header-type v2 --arc-id 0x53 --spi-flash-offset 0x200000 --image u-boot.bin --elf u-boot")
++    print((sys.argv[0] + \
++        " --header-type v2 --arc-id 0x53 --spi-flash-offset 0x200000 --image u-boot.bin --elf u-boot"))
+     sys.exit(exit_code)
+ 
+ 
+@@ -31,15 +31,15 @@ def calc_check_sum(filename):
+ 
+ def arg_verify(uboot_bin_filename, uboot_elf_filename, header_type):
+     if not os.path.isfile(uboot_bin_filename):
+-        print("uboot bin file not exists: " + uboot_bin_filename)
++        print(("uboot bin file not exists: " + uboot_bin_filename))
+         sys.exit(2)
+ 
+     if not os.path.isfile(uboot_elf_filename):
+-        print("uboot elf file not exists: " + uboot_elf_filename)
++        print(("uboot elf file not exists: " + uboot_elf_filename))
+         sys.exit(2)
+ 
+     if header_type not in ("v1", "v2"):
+-        print("unknown header type: " + header_type)
++        print(("unknown header type: " + header_type))
+         print("choose between 'v1' (most likely AXS101) and 'v2' (most likely AXS103)")
+         sys.exit(2)
+ 
+diff --git a/u-boot-el1-hyp/board/synopsys/hsdk/headerize-hsdk.py b/u-boot-el1-hyp/board/synopsys/hsdk/headerize-hsdk.py
+index fce749723..e621bae49 100644
+--- a/u-boot-el1-hyp/board/synopsys/hsdk/headerize-hsdk.py
++++ b/u-boot-el1-hyp/board/synopsys/hsdk/headerize-hsdk.py
+@@ -9,7 +9,7 @@ from elftools.elf.elffile import ELFFile
+ 
+ def usage(exit_code):
+     print("usage:")
+-    print(sys.argv[0] + " --arc-id 0x52 --image u-boot.bin --elf u-boot")
++    print((sys.argv[0] + " --arc-id 0x52 --image u-boot.bin --elf u-boot"))
+     sys.exit(exit_code)
+ 
+ 
+@@ -28,15 +28,15 @@ def calc_check_sum(filename):
+ 
+ def arg_verify(uboot_bin_filename, uboot_elf_filename, arc_id):
+     if arc_id not in [0x52, 0x53]:
+-        print("unknown ARC ID: " + hex(arc_id))
++        print(("unknown ARC ID: " + hex(arc_id)))
+         sys.exit(2)
+ 
+     if not os.path.isfile(uboot_bin_filename):
+-        print("uboot bin file not exists: " + uboot_bin_filename)
++        print(("uboot bin file not exists: " + uboot_bin_filename))
+         sys.exit(2)
+ 
+     if not os.path.isfile(uboot_elf_filename):
+-        print("uboot elf file not exists: " + uboot_elf_filename)
++        print(("uboot elf file not exists: " + uboot_elf_filename))
+         sys.exit(2)
+ 
+ 
+diff --git a/u-boot-el1-hyp/lib/libfdt/test_libfdt.py b/u-boot-el1-hyp/lib/libfdt/test_libfdt.py
+index 14d0da4fb..f5e8a1ba1 100644
+--- a/u-boot-el1-hyp/lib/libfdt/test_libfdt.py
++++ b/u-boot-el1-hyp/lib/libfdt/test_libfdt.py
+@@ -11,4 +11,4 @@ import libfdt
+ with open('b/sandbox_spl/u-boot.dtb') as fd:
+     fdt = fd.read()
+ 
+-print libfdt.fdt_path_offset(fdt, "/aliases")
++print(libfdt.fdt_path_offset(fdt, "/aliases"))
+diff --git a/u-boot-el1-hyp/scripts/dtc/dtc-lexer.l b/u-boot-el1-hyp/scripts/dtc/dtc-lexer.l
+index fd825ebba..f57c9a7e8 100644
+--- a/u-boot-el1-hyp/scripts/dtc/dtc-lexer.l
++++ b/u-boot-el1-hyp/scripts/dtc/dtc-lexer.l
+@@ -38,7 +38,7 @@ LINECOMMENT	"//".*\n
+ #include "srcpos.h"
+ #include "dtc-parser.tab.h"
+ 
+-YYLTYPE yylloc;
++extern YYLTYPE yylloc;
+ extern bool treesource_error;
+ 
+ /* CAUTION: this will stop working if we ever use yyless() or yyunput() */
+diff --git a/u-boot-el1-hyp/scripts/dtc/pylibfdt/Makefile b/u-boot-el1-hyp/scripts/dtc/pylibfdt/Makefile
+index 15e66ad44..42342c75b 100644
+--- a/u-boot-el1-hyp/scripts/dtc/pylibfdt/Makefile
++++ b/u-boot-el1-hyp/scripts/dtc/pylibfdt/Makefile
+@@ -21,7 +21,7 @@ quiet_cmd_pymod = PYMOD   $@
+ 		CPPFLAGS="$(HOSTCFLAGS) -I$(LIBFDT_srcdir)" OBJDIR=$(obj) \
+ 		SOURCES="$(PYLIBFDT_srcs)" \
+ 		SWIG_OPTS="-I$(LIBFDT_srcdir) -I$(LIBFDT_srcdir)/.." \
+-		$(PYTHON2) $< --quiet build_ext --inplace
++		$(PYTHON3) $< --quiet build_ext --inplace
+ 
+ $(obj)/_libfdt.so: $(src)/setup.py $(PYLIBFDT_srcs) FORCE
+ 	$(call if_changed,pymod)
+diff --git a/u-boot-el1-hyp/scripts/dtc/pylibfdt/setup.py b/u-boot-el1-hyp/scripts/dtc/pylibfdt/setup.py
+index 4f7cf042b..8e03c6f9f 100755
+--- a/u-boot-el1-hyp/scripts/dtc/pylibfdt/setup.py
++++ b/u-boot-el1-hyp/scripts/dtc/pylibfdt/setup.py
+@@ -1,4 +1,4 @@
+-#!/usr/bin/env python2
++#!/usr/bin/env python3
+ 
+ """
+ setup.py file for SWIG libfdt
+@@ -114,7 +114,7 @@ libfdt_module = Extension(
+ 
+ setup(
+     name='libfdt',
+-    version= version,
++    version= version.replace('u-boot-', ''),
+     author='Simon Glass <sjg@chromium.org>',
+     description='Python binding for libfdt',
+     ext_modules=[libfdt_module],
+diff --git a/u-boot-el1-hyp/scripts/fill_scrapyard.py b/u-boot-el1-hyp/scripts/fill_scrapyard.py
+index 55a7f382c..ee65f7bc5 100755
+--- a/u-boot-el1-hyp/scripts/fill_scrapyard.py
++++ b/u-boot-el1-hyp/scripts/fill_scrapyard.py
+@@ -1,4 +1,4 @@
+-#!/usr/bin/env python2
++#!/usr/bin/env python3
+ # SPDX-License-Identifier: GPL-2.0+
+ #
+ # Author: Masahiro Yamada <yamada.m@jp.panasonic.com>
+diff --git a/u-boot-el1-hyp/scripts/kconfig/tests/conftest.py b/u-boot-el1-hyp/scripts/kconfig/tests/conftest.py
+index 0345ef6e3..50327cff9 100644
+--- a/u-boot-el1-hyp/scripts/kconfig/tests/conftest.py
++++ b/u-boot-el1-hyp/scripts/kconfig/tests/conftest.py
+@@ -97,19 +97,19 @@ class Conf:
+         # of tests, the captured log will be displayed.  This will be useful to
+         # figure out what has happened.
+ 
+-        print("[command]\n{}\n".format(' '.join(command)))
++        print(("[command]\n{}\n".format(' '.join(command))))
+ 
+-        print("[retcode]\n{}\n".format(self.retcode))
++        print(("[retcode]\n{}\n".format(self.retcode)))
+ 
+         print("[stdout]")
+-        print(self.stdout)
++        print((self.stdout))
+ 
+         print("[stderr]")
+-        print(self.stderr)
++        print((self.stderr))
+ 
+         if self.config is not None:
+-            print("[output for '{}']".format(out_file))
+-            print(self.config)
++            print(("[output for '{}']".format(out_file)))
++            print((self.config))
+ 
+         return self.retcode
+ 
+diff --git a/u-boot-el1-hyp/scripts/mailmapper b/u-boot-el1-hyp/scripts/mailmapper
+index 2e2d7faff..9aa82f983 100755
+--- a/u-boot-el1-hyp/scripts/mailmapper
++++ b/u-boot-el1-hyp/scripts/mailmapper
+@@ -1,4 +1,4 @@
+-#!/usr/bin/env python2
++#!/usr/bin/env python3
+ # SPDX-License-Identifier: GPL-2.0+
+ #
+ # Copyright (C) 2014, Masahiro Yamada <yamada.m@jp.panasonic.com>
+diff --git a/u-boot-el1-hyp/test/py/conftest.py b/u-boot-el1-hyp/test/py/conftest.py
+index e40cbf0ba..0f853853e 100644
+--- a/u-boot-el1-hyp/test/py/conftest.py
++++ b/u-boot-el1-hyp/test/py/conftest.py
+@@ -19,13 +19,13 @@ import os.path
+ import pytest
+ from _pytest.runner import runtestprotocol
+ import re
+-import StringIO
++import io
+ import sys
+ 
+ try:
+     import configparser
+ except:
+-    import ConfigParser as configparser
++    import configparser as configparser
+ 
+ # Globals: The HTML log file, and the connection to the U-Boot console.
+ log = None
+@@ -169,7 +169,7 @@ def pytest_configure(config):
+ 
+         with open(dot_config, 'rt') as f:
+             ini_str = '[root]\n' + f.read()
+-            ini_sio = StringIO.StringIO(ini_str)
++            ini_sio = io.StringIO(ini_str)
+             parser = configparser.RawConfigParser()
+             parser.readfp(ini_sio)
+             ubconfig.buildconfig.update(parser.items('root'))
+diff --git a/u-boot-el1-hyp/test/py/test.py b/u-boot-el1-hyp/test/py/test.py
+index a5140945d..d73aa01b7 100755
+--- a/u-boot-el1-hyp/test/py/test.py
++++ b/u-boot-el1-hyp/test/py/test.py
+@@ -1,4 +1,4 @@
+-#!/usr/bin/env python2
++#!/usr/bin/env python3
+ # SPDX-License-Identifier: GPL-2.0
+ 
+ # Copyright (c) 2015 Stephen Warren
+@@ -7,7 +7,7 @@
+ # Wrapper script to invoke pytest with the directory name that contains the
+ # U-Boot tests.
+ 
+-from __future__ import print_function
++
+ 
+ import os
+ import os.path
+diff --git a/u-boot-el1-hyp/test/py/tests/test_avb.py b/u-boot-el1-hyp/test/py/tests/test_avb.py
+index e70a010c9..0631c7ec8 100644
+--- a/u-boot-el1-hyp/test/py/tests/test_avb.py
++++ b/u-boot-el1-hyp/test/py/tests/test_avb.py
+@@ -64,7 +64,7 @@ def test_avb_mmc_uuid(u_boot_console):
+             part_list[cur_partname] = guid_to_check[1]
+ 
+     # lets check all guids with avb get_guid
+-    for part, guid in part_list.iteritems():
++    for part, guid in part_list.items():
+         avb_guid_resp = u_boot_console.run_command('avb get_uuid %s' % part)
+         assert guid == avb_guid_resp.split('UUID: ')[1]
+ 
+diff --git a/u-boot-el1-hyp/test/py/tests/test_fit.py b/u-boot-el1-hyp/test/py/tests/test_fit.py
+index 49d6fea57..b72e50f27 100755
+--- a/u-boot-el1-hyp/test/py/tests/test_fit.py
++++ b/u-boot-el1-hyp/test/py/tests/test_fit.py
+@@ -3,7 +3,7 @@
+ #
+ # Sanity check of the FIT handling in U-Boot
+ 
+-from __future__ import print_function
++
+ 
+ import os
+ import pytest
+diff --git a/u-boot-el1-hyp/test/py/tests/test_fs/conftest.py b/u-boot-el1-hyp/test/py/tests/test_fs/conftest.py
+index 43eeb4be0..477866e6f 100644
+--- a/u-boot-el1-hyp/test/py/tests/test_fs/conftest.py
++++ b/u-boot-el1-hyp/test/py/tests/test_fs/conftest.py
+@@ -54,7 +54,7 @@ def pytest_configure(config):
+ 
+     supported_fs = config.getoption('fs_type')
+     if supported_fs:
+-        print('*** FS TYPE modified: %s' % supported_fs)
++        print(('*** FS TYPE modified: %s' % supported_fs))
+         supported_fs_basic =  intersect(supported_fs, supported_fs_basic)
+         supported_fs_ext =  intersect(supported_fs, supported_fs_ext)
+         supported_fs_mkdir =  intersect(supported_fs, supported_fs_mkdir)
+diff --git a/u-boot-el1-hyp/test/py/tests/test_log.py b/u-boot-el1-hyp/test/py/tests/test_log.py
+index cb183444c..75325fad6 100644
+--- a/u-boot-el1-hyp/test/py/tests/test_log.py
++++ b/u-boot-el1-hyp/test/py/tests/test_log.py
+@@ -27,9 +27,9 @@ def test_log(u_boot_console):
+         """
+         for i in range(max_level):
+             if mask & 1:
+-                assert 'log_run() log %d' % i == lines.next()
++                assert 'log_run() log %d' % i == next(lines)
+             if mask & 3:
+-                assert 'func() _log %d' % i == lines.next()
++                assert 'func() _log %d' % i == next(lines)
+ 
+     def run_test(testnum):
+         """Run a particular test number (the 'log test' command)
+@@ -43,7 +43,7 @@ def test_log(u_boot_console):
+            output = u_boot_console.run_command('log test %d' % testnum)
+         split = output.replace('\r', '').splitlines()
+         lines = iter(split)
+-        assert 'test %d' % testnum == lines.next()
++        assert 'test %d' % testnum == next(lines)
+         return lines
+ 
+     def test0():
+@@ -88,7 +88,7 @@ def test_log(u_boot_console):
+     def test10():
+         lines = run_test(10)
+         for i in range(7):
+-            assert 'log_test() level %d' % i == lines.next()
++            assert 'log_test() level %d' % i == next(lines)
+ 
+     # TODO(sjg@chromium.org): Consider structuring this as separate tests
+     cons = u_boot_console
+diff --git a/u-boot-el1-hyp/tools/binman/binman.py b/u-boot-el1-hyp/tools/binman/binman.py
+index 439908e66..8fb0119eb 100755
+--- a/u-boot-el1-hyp/tools/binman/binman.py
++++ b/u-boot-el1-hyp/tools/binman/binman.py
+@@ -1,4 +1,4 @@
+-#!/usr/bin/env python2
++#!/usr/bin/env python3
+ # SPDX-License-Identifier: GPL-2.0+
+ 
+ # Copyright (c) 2016 Google, Inc
+@@ -85,13 +85,13 @@ def RunTests(debug, processes, args):
+     else:
+         suite.run(result)
+ 
+-    print result
++    print(result)
+     for test, err in result.errors:
+-        print test.id(), err
++        print(test.id(), err)
+     for test, err in result.failures:
+-        print err, result.failures
++        print(err, result.failures)
+     if result.errors or result.failures:
+-      print 'binman tests FAILED'
++      print('binman tests FAILED')
+       return 1
+     return 0
+ 
+@@ -143,9 +143,9 @@ def RunBinman(options, args):
+         try:
+             ret_code = control.Binman(options, args)
+         except Exception as e:
+-            print 'binman: %s' % e
++            print('binman: %s' % e)
+             if options.debug:
+-                print
++                print()
+                 traceback.print_exc()
+             ret_code = 1
+     return ret_code
+diff --git a/u-boot-el1-hyp/tools/binman/bsection.py b/u-boot-el1-hyp/tools/binman/bsection.py
+index ccf2920c5..688520f95 100644
+--- a/u-boot-el1-hyp/tools/binman/bsection.py
++++ b/u-boot-el1-hyp/tools/binman/bsection.py
+@@ -5,7 +5,7 @@
+ # Base class for sections (collections of entries)
+ #
+ 
+-from __future__ import print_function
++
+ 
+ from collections import OrderedDict
+ from sets import Set
+@@ -109,7 +109,7 @@ class Section(object):
+     def GetFdtSet(self):
+         """Get the set of device tree files used by this image"""
+         fdt_set = Set()
+-        for entry in self._entries.values():
++        for entry in list(self._entries.values()):
+             fdt_set.update(entry.GetFdtSet())
+         return fdt_set
+ 
+@@ -117,7 +117,7 @@ class Section(object):
+         self._offset = offset
+ 
+     def ExpandEntries(self):
+-        for entry in self._entries.values():
++        for entry in list(self._entries.values()):
+             entry.ExpandEntries()
+ 
+     def AddMissingProperties(self):
+@@ -126,7 +126,7 @@ class Section(object):
+             if not prop in self._node.props:
+                 state.AddZeroProp(self._node, prop)
+         state.CheckAddHashProp(self._node)
+-        for entry in self._entries.values():
++        for entry in list(self._entries.values()):
+             entry.AddMissingProperties()
+ 
+     def SetCalculatedProperties(self):
+@@ -136,11 +136,11 @@ class Section(object):
+         if self._parent_section:
+             image_pos -= self._parent_section.GetRootSkipAtStart()
+         state.SetInt(self._node, 'image-pos', image_pos)
+-        for entry in self._entries.values():
++        for entry in list(self._entries.values()):
+             entry.SetCalculatedProperties()
+ 
+     def ProcessFdt(self, fdt):
+-        todo = self._entries.values()
++        todo = list(self._entries.values())
+         for passnum in range(3):
+             next_todo = []
+             for entry in todo:
+@@ -157,7 +157,7 @@ class Section(object):
+     def CheckSize(self):
+         """Check that the section contents does not exceed its size, etc."""
+         contents_size = 0
+-        for entry in self._entries.values():
++        for entry in list(self._entries.values()):
+             contents_size = max(contents_size, entry.offset + entry.size)
+ 
+         contents_size -= self._skip_at_start
+@@ -203,7 +203,7 @@ class Section(object):
+         Returns:
+             entry matching that type, or None if not found
+         """
+-        for entry in self._entries.values():
++        for entry in list(self._entries.values()):
+             if entry.etype == etype:
+                 return entry
+         return None
+@@ -217,7 +217,7 @@ class Section(object):
+ 
+         After 3 rounds we give up since it's likely an error.
+         """
+-        todo = self._entries.values()
++        todo = list(self._entries.values())
+         for passnum in range(3):
+             next_todo = []
+             for entry in todo:
+@@ -251,21 +251,21 @@ class Section(object):
+         This calls each entry's GetOffsets() method. If it returns a list
+         of entries to update, it updates them.
+         """
+-        for entry in self._entries.values():
++        for entry in list(self._entries.values()):
+             offset_dict = entry.GetOffsets()
+-            for name, info in offset_dict.iteritems():
++            for name, info in offset_dict.items():
+                 self._SetEntryOffsetSize(name, *info)
+ 
+     def PackEntries(self):
+         """Pack all entries into the section"""
+         offset = self._skip_at_start
+-        for entry in self._entries.values():
++        for entry in list(self._entries.values()):
+             offset = entry.Pack(offset)
+         self._size = self.CheckSize()
+ 
+     def _SortEntries(self):
+         """Sort entries by offset"""
+-        entries = sorted(self._entries.values(), key=lambda entry: entry.offset)
++        entries = sorted(list(self._entries.values()), key=lambda entry: entry.offset)
+         self._entries.clear()
+         for entry in entries:
+             self._entries[entry._node.name] = entry
+@@ -273,7 +273,7 @@ class Section(object):
+     def _ExpandEntries(self):
+         """Expand any entries that are permitted to"""
+         exp_entry = None
+-        for entry in self._entries.values():
++        for entry in list(self._entries.values()):
+             if exp_entry:
+                 exp_entry.ExpandToLimit(entry.offset)
+                 exp_entry = None
+@@ -292,7 +292,7 @@ class Section(object):
+         self._ExpandEntries()
+         offset = 0
+         prev_name = 'None'
+-        for entry in self._entries.values():
++        for entry in list(self._entries.values()):
+             entry.CheckOffset()
+             if (entry.offset < self._skip_at_start or
+                 entry.offset + entry.size > self._skip_at_start + self._size):
+@@ -309,7 +309,7 @@ class Section(object):
+ 
+     def SetImagePos(self, image_pos):
+         self._image_pos = image_pos
+-        for entry in self._entries.values():
++        for entry in list(self._entries.values()):
+             entry.SetImagePos(image_pos)
+ 
+     def ProcessEntryContents(self):
+@@ -317,12 +317,12 @@ class Section(object):
+ 
+         This is intended to adjust the contents as needed by the entry type.
+         """
+-        for entry in self._entries.values():
++        for entry in list(self._entries.values()):
+             entry.ProcessContents()
+ 
+     def WriteSymbols(self):
+         """Write symbol values into binary files for access at run time"""
+-        for entry in self._entries.values():
++        for entry in list(self._entries.values()):
+             entry.WriteSymbols(self)
+ 
+     def BuildSection(self, fd, base_offset):
+@@ -334,7 +334,7 @@ class Section(object):
+         """Get the contents of the section"""
+         section_data = chr(self._pad_byte) * self._size
+ 
+-        for entry in self._entries.values():
++        for entry in list(self._entries.values()):
+             data = entry.GetData()
+             base = self._pad_before + entry.offset - self._skip_at_start
+             section_data = (section_data[:base] + data +
+@@ -386,7 +386,7 @@ class Section(object):
+                             entry = self._entries[name]
+         if not entry:
+             err = ("%s: Entry '%s' not found in list (%s)" %
+-                   (msg, entry_name, ','.join(self._entries.keys())))
++                   (msg, entry_name, ','.join(list(self._entries.keys()))))
+             if optional:
+                 print('Warning: %s' % err, file=sys.stderr)
+                 return None
+@@ -426,7 +426,7 @@ class Section(object):
+         """
+         Entry.WriteMapLine(fd, indent, self._name, self._offset, self._size,
+                            self._image_pos)
+-        for entry in self._entries.values():
++        for entry in list(self._entries.values()):
+             entry.WriteMap(fd, indent + 1)
+ 
+     def GetContentsByPhandle(self, phandle, source_entry):
+@@ -446,7 +446,7 @@ class Section(object):
+         node = self._node.GetFdt().LookupPhandle(phandle)
+         if not node:
+             source_entry.Raise("Cannot find node for phandle %d" % phandle)
+-        for entry in self._entries.values():
++        for entry in list(self._entries.values()):
+             if entry._node == node:
+                 return entry.GetData()
+         source_entry.Raise("Cannot find entry for node '%s'" % node.name)
+diff --git a/u-boot-el1-hyp/tools/binman/control.py b/u-boot-el1-hyp/tools/binman/control.py
+index 3446e2e79..487f972cb 100644
+--- a/u-boot-el1-hyp/tools/binman/control.py
++++ b/u-boot-el1-hyp/tools/binman/control.py
+@@ -129,12 +129,12 @@ def Binman(options, args):
+ 
+             if options.image:
+                 skip = []
+-                for name, image in images.iteritems():
++                for name, image in images.items():
+                     if name not in options.image:
+                         del images[name]
+                         skip.append(name)
+                 if skip:
+-                    print 'Skipping images: %s\n' % ', '.join(skip)
++                    print('Skipping images: %s\n' % ', '.join(skip))
+ 
+             state.Prepare(images, dtb)
+ 
+@@ -145,7 +145,7 @@ def Binman(options, args):
+             # SetCalculatedProperties() we will insert the correct values
+             # without changing the device-tree size, thus ensuring that our
+             # entry offsets remain the same.
+-            for image in images.values():
++            for image in list(images.values()):
+                 image.ExpandEntries()
+                 if options.update_fdt:
+                     image.AddMissingProperties()
+@@ -156,7 +156,7 @@ def Binman(options, args):
+                 dtb_item.Pack()
+                 dtb_item.Flush()
+ 
+-            for image in images.values():
++            for image in list(images.values()):
+                 # Perform all steps for this image, including checking and
+                 # writing it. This means that errors found with a later
+                 # image will be reported after earlier images are already
+@@ -170,7 +170,7 @@ def Binman(options, args):
+                 except Exception as e:
+                     if options.map:
+                         fname = image.WriteMap()
+-                        print "Wrote map file '%s' to show errors"  % fname
++                        print("Wrote map file '%s' to show errors"  % fname)
+                     raise
+                 image.SetImagePos()
+                 if options.update_fdt:
+diff --git a/u-boot-el1-hyp/tools/binman/elf.py b/u-boot-el1-hyp/tools/binman/elf.py
+index 97df8e32c..9c3b4ef8c 100644
+--- a/u-boot-el1-hyp/tools/binman/elf.py
++++ b/u-boot-el1-hyp/tools/binman/elf.py
+@@ -59,7 +59,7 @@ def GetSymbols(fname, patterns):
+                                 flags[1] == 'w')
+ 
+     # Sort dict by address
+-    return OrderedDict(sorted(syms.iteritems(), key=lambda x: x[1].address))
++    return OrderedDict(sorted(iter(syms.items()), key=lambda x: x[1].address))
+ 
+ def GetSymbolAddress(fname, sym_name):
+     """Get a value of a symbol from an ELF file
+@@ -98,7 +98,7 @@ def LookupAndWriteSymbols(elf_fname, entry, section):
+     base = syms.get('__image_copy_start')
+     if not base:
+         return
+-    for name, sym in syms.iteritems():
++    for name, sym in syms.items():
+         if name.startswith('_binman'):
+             msg = ("Section '%s': Symbol '%s'\n   in entry '%s'" %
+                    (section.GetPath(), name, entry.GetPath()))
+@@ -124,7 +124,7 @@ def LookupAndWriteSymbols(elf_fname, entry, section):
+                 pack_string = pack_string.lower()
+             value_bytes = struct.pack(pack_string, value)
+             if debug:
+-                print('%s:\n   insert %s, offset %x, value %x, length %d' %
+-                      (msg, name, offset, value, len(value_bytes)))
++                print(('%s:\n   insert %s, offset %x, value %x, length %d' %
++                      (msg, name, offset, value, len(value_bytes))))
+             entry.data = (entry.data[:offset] + value_bytes +
+                         entry.data[offset + sym.size:])
+diff --git a/u-boot-el1-hyp/tools/binman/entry.py b/u-boot-el1-hyp/tools/binman/entry.py
+index 648cfd241..051429249 100644
+--- a/u-boot-el1-hyp/tools/binman/entry.py
++++ b/u-boot-el1-hyp/tools/binman/entry.py
+@@ -4,7 +4,7 @@
+ # Base class for all entries
+ #
+ 
+-from __future__ import print_function
++
+ 
+ from collections import namedtuple
+ 
+diff --git a/u-boot-el1-hyp/tools/binman/entry_test.py b/u-boot-el1-hyp/tools/binman/entry_test.py
+index 1f7ff5b4e..9e15d32f7 100644
+--- a/u-boot-el1-hyp/tools/binman/entry_test.py
++++ b/u-boot-el1-hyp/tools/binman/entry_test.py
+@@ -12,6 +12,7 @@ import unittest
+ import fdt
+ import fdt_util
+ import tools
++import importlib
+ 
+ entry = None
+ 
+@@ -41,7 +42,7 @@ class TestEntry(unittest.TestCase):
+         del sys.modules['importlib']
+         global entry
+         if entry:
+-            reload(entry)
++            importlib.reload(entry)
+         else:
+             import entry
+         entry.Entry.Create(None, self.GetNode(), 'u-boot-spl')
+diff --git a/u-boot-el1-hyp/tools/binman/etype/fmap.py b/u-boot-el1-hyp/tools/binman/etype/fmap.py
+index bf35a5bbf..9b28b3dfa 100644
+--- a/u-boot-el1-hyp/tools/binman/etype/fmap.py
++++ b/u-boot-el1-hyp/tools/binman/etype/fmap.py
+@@ -39,7 +39,7 @@ class Entry_fmap(Entry):
+         def _AddEntries(areas, entry):
+             entries = entry.GetEntries()
+             if entries:
+-                for subentry in entries.values():
++                for subentry in list(entries.values()):
+                     _AddEntries(areas, subentry)
+             else:
+                 pos = entry.image_pos
+@@ -50,7 +50,7 @@ class Entry_fmap(Entry):
+ 
+         entries = self.section._image.GetEntries()
+         areas = []
+-        for entry in entries.values():
++        for entry in list(entries.values()):
+             _AddEntries(areas, entry)
+         return fmap_util.EncodeFmap(self.section.GetImageSize() or 0, self.name,
+                                     areas)
+diff --git a/u-boot-el1-hyp/tools/binman/etype/gbb.py b/u-boot-el1-hyp/tools/binman/etype/gbb.py
+index 8fe10f471..a94c0fca9 100644
+--- a/u-boot-el1-hyp/tools/binman/etype/gbb.py
++++ b/u-boot-el1-hyp/tools/binman/etype/gbb.py
+@@ -64,7 +64,7 @@ class Entry_gbb(Entry):
+         self.gbb_flags = 0
+         flags_node = node.FindNode('flags')
+         if flags_node:
+-            for flag, value in gbb_flag_properties.iteritems():
++            for flag, value in gbb_flag_properties.items():
+                 if fdt_util.GetBool(flags_node, flag):
+                     self.gbb_flags |= value
+ 
+diff --git a/u-boot-el1-hyp/tools/binman/etype/intel_descriptor.py b/u-boot-el1-hyp/tools/binman/etype/intel_descriptor.py
+index 6acbbd8b7..3b16cbed7 100644
+--- a/u-boot-el1-hyp/tools/binman/etype/intel_descriptor.py
++++ b/u-boot-el1-hyp/tools/binman/etype/intel_descriptor.py
+@@ -15,7 +15,7 @@ MAX_REGIONS    = 5
+ 
+ # Region numbers supported by the Intel firmware format
+ (REGION_DESCRIPTOR, REGION_BIOS, REGION_ME, REGION_GBE,
+-        REGION_PDATA) = range(5)
++        REGION_PDATA) = list(range(5))
+ 
+ class Region:
+     def __init__(self, data, frba, region_num):
+diff --git a/u-boot-el1-hyp/tools/binman/fdt_test.py b/u-boot-el1-hyp/tools/binman/fdt_test.py
+index ac6f910d3..131ccc06a 100644
+--- a/u-boot-el1-hyp/tools/binman/fdt_test.py
++++ b/u-boot-el1-hyp/tools/binman/fdt_test.py
+@@ -44,43 +44,43 @@ class TestFdt(unittest.TestCase):
+         fname = self.GetCompiled('045_prop_test.dts')
+         dt = FdtScan(fname)
+         node = dt.GetNode('/binman/intel-me')
+-        self.assertEquals('intel-me', node.name)
++        self.assertEqual('intel-me', node.name)
+         val = fdt_util.GetString(node, 'filename')
+-        self.assertEquals(str, type(val))
+-        self.assertEquals('me.bin', val)
++        self.assertEqual(str, type(val))
++        self.assertEqual('me.bin', val)
+ 
+         prop = node.props['intval']
+-        self.assertEquals(fdt.TYPE_INT, prop.type)
+-        self.assertEquals(3, fdt_util.GetInt(node, 'intval'))
++        self.assertEqual(fdt.TYPE_INT, prop.type)
++        self.assertEqual(3, fdt_util.GetInt(node, 'intval'))
+ 
+         prop = node.props['intarray']
+-        self.assertEquals(fdt.TYPE_INT, prop.type)
+-        self.assertEquals(list, type(prop.value))
+-        self.assertEquals(2, len(prop.value))
+-        self.assertEquals([5, 6],
++        self.assertEqual(fdt.TYPE_INT, prop.type)
++        self.assertEqual(list, type(prop.value))
++        self.assertEqual(2, len(prop.value))
++        self.assertEqual([5, 6],
+                           [fdt_util.fdt32_to_cpu(val) for val in prop.value])
+ 
+         prop = node.props['byteval']
+-        self.assertEquals(fdt.TYPE_BYTE, prop.type)
+-        self.assertEquals(chr(8), prop.value)
++        self.assertEqual(fdt.TYPE_BYTE, prop.type)
++        self.assertEqual(chr(8), prop.value)
+ 
+         prop = node.props['bytearray']
+-        self.assertEquals(fdt.TYPE_BYTE, prop.type)
+-        self.assertEquals(list, type(prop.value))
+-        self.assertEquals(str, type(prop.value[0]))
+-        self.assertEquals(3, len(prop.value))
+-        self.assertEquals([chr(1), '#', '4'], prop.value)
++        self.assertEqual(fdt.TYPE_BYTE, prop.type)
++        self.assertEqual(list, type(prop.value))
++        self.assertEqual(str, type(prop.value[0]))
++        self.assertEqual(3, len(prop.value))
++        self.assertEqual([chr(1), '#', '4'], prop.value)
+ 
+         prop = node.props['longbytearray']
+-        self.assertEquals(fdt.TYPE_INT, prop.type)
+-        self.assertEquals(0x090a0b0c, fdt_util.GetInt(node, 'longbytearray'))
++        self.assertEqual(fdt.TYPE_INT, prop.type)
++        self.assertEqual(0x090a0b0c, fdt_util.GetInt(node, 'longbytearray'))
+ 
+         prop = node.props['stringval']
+-        self.assertEquals(fdt.TYPE_STRING, prop.type)
+-        self.assertEquals('message2', fdt_util.GetString(node, 'stringval'))
++        self.assertEqual(fdt.TYPE_STRING, prop.type)
++        self.assertEqual('message2', fdt_util.GetString(node, 'stringval'))
+ 
+         prop = node.props['stringarray']
+-        self.assertEquals(fdt.TYPE_STRING, prop.type)
+-        self.assertEquals(list, type(prop.value))
+-        self.assertEquals(3, len(prop.value))
+-        self.assertEquals(['another', 'multi-word', 'message'], prop.value)
++        self.assertEqual(fdt.TYPE_STRING, prop.type)
++        self.assertEqual(list, type(prop.value))
++        self.assertEqual(3, len(prop.value))
++        self.assertEqual(['another', 'multi-word', 'message'], prop.value)
+diff --git a/u-boot-el1-hyp/tools/binman/ftest.py b/u-boot-el1-hyp/tools/binman/ftest.py
+index e77fce5a2..ad8f6aa2e 100644
+--- a/u-boot-el1-hyp/tools/binman/ftest.py
++++ b/u-boot-el1-hyp/tools/binman/ftest.py
+@@ -211,7 +211,7 @@ class TestFunctional(unittest.TestCase):
+         if not use_real_dtb:
+             args.append('--fake-dtb')
+         if entry_args:
+-            for arg, value in entry_args.iteritems():
++            for arg, value in entry_args.items():
+                 args.append('-a%s=%s' % (arg, value))
+         if images:
+             for image in images:
+@@ -402,7 +402,7 @@ class TestFunctional(unittest.TestCase):
+             entries: List of entries to check
+         """
+         offset = 0
+-        for entry in entries.values():
++        for entry in list(entries.values()):
+             self.assertEqual(offset, entry.offset)
+             offset += entry.size
+ 
+@@ -422,7 +422,7 @@ class TestFunctional(unittest.TestCase):
+             if node.name != '/':
+                 path += '/' + node.name
+             for subnode in node.subnodes:
+-                for prop in subnode.props.values():
++                for prop in list(subnode.props.values()):
+                     if prop.name in prop_names:
+                         prop_path = path + '/' + subnode.name + ':' + prop.name
+                         tree[prop_path[len('/binman/'):]] = fdt_util.fdt32_to_cpu(
+@@ -1561,7 +1561,7 @@ class TestFunctional(unittest.TestCase):
+         dtb.Scan()
+         props = self._GetPropTree(dtb, ['size', 'uncomp-size'])
+         orig = self._decompress(data)
+-        self.assertEquals(COMPRESS_DATA, orig)
++        self.assertEqual(COMPRESS_DATA, orig)
+         expected = {
+             'blob:uncomp-size': len(COMPRESS_DATA),
+             'blob:size': len(data),
+diff --git a/u-boot-el1-hyp/tools/binman/image.py b/u-boot-el1-hyp/tools/binman/image.py
+index f237ae302..ae71819b7 100644
+--- a/u-boot-el1-hyp/tools/binman/image.py
++++ b/u-boot-el1-hyp/tools/binman/image.py
+@@ -5,7 +5,7 @@
+ # Class for an image, the output of binman
+ #
+ 
+-from __future__ import print_function
++
+ 
+ from collections import OrderedDict
+ from operator import attrgetter
+diff --git a/u-boot-el1-hyp/tools/binman/state.py b/u-boot-el1-hyp/tools/binman/state.py
+index d945e4bf6..c65dbe925 100644
+--- a/u-boot-el1-hyp/tools/binman/state.py
++++ b/u-boot-el1-hyp/tools/binman/state.py
+@@ -138,7 +138,7 @@ def Prepare(images, dtb):
+     fdt_files['u-boot.dtb'] = dtb
+     fdt_subset = Set()
+     if not use_fake_dtb:
+-        for image in images.values():
++        for image in list(images.values()):
+             fdt_subset.update(image.GetFdtSet())
+         fdt_subset.discard('u-boot.dtb')
+         for other_fname in fdt_subset:
+@@ -175,7 +175,7 @@ def GetUpdateNodes(node):
+             is node, SPL and TPL)
+     """
+     yield node
+-    for dtb in fdt_files.values():
++    for dtb in list(fdt_files.values()):
+         if dtb != node.GetFdt():
+             other_node = dtb.GetNode(node.path)
+             if other_node:
+diff --git a/u-boot-el1-hyp/tools/buildman/bsettings.py b/u-boot-el1-hyp/tools/buildman/bsettings.py
+index 03d7439aa..0b7208da3 100644
+--- a/u-boot-el1-hyp/tools/buildman/bsettings.py
++++ b/u-boot-el1-hyp/tools/buildman/bsettings.py
+@@ -1,9 +1,9 @@
+ # SPDX-License-Identifier: GPL-2.0+
+ # Copyright (c) 2012 The Chromium OS Authors.
+ 
+-import ConfigParser
++import configparser
+ import os
+-import StringIO
++import io
+ 
+ 
+ def Setup(fname=''):
+@@ -15,20 +15,20 @@ def Setup(fname=''):
+     global settings
+     global config_fname
+ 
+-    settings = ConfigParser.SafeConfigParser()
++    settings = configparser.SafeConfigParser()
+     if fname is not None:
+         config_fname = fname
+         if config_fname == '':
+             config_fname = '%s/.buildman' % os.getenv('HOME')
+         if not os.path.exists(config_fname):
+-            print 'No config file found ~/.buildman\nCreating one...\n'
++            print('No config file found ~/.buildman\nCreating one...\n')
+             CreateBuildmanConfigFile(config_fname)
+-            print 'To install tool chains, please use the --fetch-arch option'
++            print('To install tool chains, please use the --fetch-arch option')
+         if config_fname:
+             settings.read(config_fname)
+ 
+ def AddFile(data):
+-    settings.readfp(StringIO.StringIO(data))
++    settings.readfp(io.StringIO(data))
+ 
+ def GetItems(section):
+     """Get the items from a section of the config.
+@@ -41,7 +41,7 @@ def GetItems(section):
+     """
+     try:
+         return settings.items(section)
+-    except ConfigParser.NoSectionError as e:
++    except configparser.NoSectionError as e:
+         return []
+     except:
+         raise
+@@ -68,10 +68,10 @@ def CreateBuildmanConfigFile(config_fname):
+     try:
+         f = open(config_fname, 'w')
+     except IOError:
+-        print "Couldn't create buildman config file '%s'\n" % config_fname
++        print("Couldn't create buildman config file '%s'\n" % config_fname)
+         raise
+ 
+-    print >>f, '''[toolchain]
++    print('''[toolchain]
+ # name = path
+ # e.g. x86 = /opt/gcc-4.6.3-nolibc/x86_64-linux
+ 
+@@ -93,5 +93,5 @@ openrisc = or1k
+ # snapper-boards=ENABLE_AT91_TEST=1
+ # snapper9260=${snapper-boards} BUILD_TAG=442
+ # snapper9g45=${snapper-boards} BUILD_TAG=443
+-'''
++''', file=f)
+     f.close();
+diff --git a/u-boot-el1-hyp/tools/buildman/builder.py b/u-boot-el1-hyp/tools/buildman/builder.py
+index 6a6c83bf3..03a3f74c3 100644
+--- a/u-boot-el1-hyp/tools/buildman/builder.py
++++ b/u-boot-el1-hyp/tools/buildman/builder.py
+@@ -9,7 +9,7 @@ from datetime import datetime, timedelta
+ import glob
+ import os
+ import re
+-import Queue
++import queue
+ import shutil
+ import signal
+ import string
+@@ -92,7 +92,7 @@ u-boot/             source directory
+ """
+ 
+ # Possible build outcomes
+-OUTCOME_OK, OUTCOME_WARNING, OUTCOME_ERROR, OUTCOME_UNKNOWN = range(4)
++OUTCOME_OK, OUTCOME_WARNING, OUTCOME_ERROR, OUTCOME_UNKNOWN = list(range(4))
+ 
+ # Translate a commit subject into a valid filename (and handle unicode)
+ trans_valid_chars = string.maketrans('/: ', '---')
+@@ -122,8 +122,8 @@ class Config:
+     def __hash__(self):
+         val = 0
+         for fname in self.config:
+-            for key, value in self.config[fname].iteritems():
+-                print key, value
++            for key, value in self.config[fname].items():
++                print(key, value)
+                 val = val ^ hash(key) & hash(value)
+         return val
+ 
+@@ -293,8 +293,8 @@ class Builder:
+         self._re_dtb_warning = re.compile('(.*): Warning .*')
+         self._re_note = re.compile('(.*):(\d*):(\d*): note: this is the location of the previous.*')
+ 
+-        self.queue = Queue.Queue()
+-        self.out_queue = Queue.Queue()
++        self.queue = queue.Queue()
++        self.out_queue = queue.Queue()
+         for i in range(self.num_threads):
+             t = builderthread.BuilderThread(self, i, incremental,
+                     per_board_out_dir)
+@@ -776,7 +776,7 @@ class Builder:
+         config = {}
+         environment = {}
+ 
+-        for board in boards_selected.itervalues():
++        for board in boards_selected.values():
+             outcome = self.GetBuildOutcome(commit_upto, board.target,
+                                            read_func_sizes, read_config,
+                                            read_environment)
+@@ -809,13 +809,13 @@ class Builder:
+             tconfig = Config(self.config_filenames, board.target)
+             for fname in self.config_filenames:
+                 if outcome.config:
+-                    for key, value in outcome.config[fname].iteritems():
++                    for key, value in outcome.config[fname].items():
+                         tconfig.Add(fname, key, value)
+             config[board.target] = tconfig
+ 
+             tenvironment = Environment(board.target)
+             if outcome.environment:
+-                for key, value in outcome.environment.iteritems():
++                for key, value in outcome.environment.items():
+                     tenvironment.Add(key, value)
+             environment[board.target] = tenvironment
+ 
+@@ -1035,12 +1035,12 @@ class Builder:
+ 
+         # We now have a list of image size changes sorted by arch
+         # Print out a summary of these
+-        for arch, target_list in arch_list.iteritems():
++        for arch, target_list in arch_list.items():
+             # Get total difference for each type
+             totals = {}
+             for result in target_list:
+                 total = 0
+-                for name, diff in result.iteritems():
++                for name, diff in result.items():
+                     if name.startswith('_'):
+                         continue
+                     total += diff
+@@ -1245,7 +1245,7 @@ class Builder:
+             if self._show_unknown:
+                 self.AddOutcome(board_selected, arch_list, unknown_boards, '?',
+                         self.col.MAGENTA)
+-            for arch, target_list in arch_list.iteritems():
++            for arch, target_list in arch_list.items():
+                 Print('%10s: %s' % (arch, target_list))
+                 self._error_lines += 1
+             if better_err:
+@@ -1278,13 +1278,13 @@ class Builder:
+                 environment_minus = {}
+                 environment_change = {}
+                 base = tbase.environment
+-                for key, value in tenvironment.environment.iteritems():
++                for key, value in tenvironment.environment.items():
+                     if key not in base:
+                         environment_plus[key] = value
+-                for key, value in base.iteritems():
++                for key, value in base.items():
+                     if key not in tenvironment.environment:
+                         environment_minus[key] = value
+-                for key, value in base.iteritems():
++                for key, value in base.items():
+                     new_value = tenvironment.environment.get(key)
+                     if new_value and value != new_value:
+                         desc = '%s -> %s' % (value, new_value)
+@@ -1337,15 +1337,15 @@ class Builder:
+                     config_minus = {}
+                     config_change = {}
+                     base = tbase.config[name]
+-                    for key, value in tconfig.config[name].iteritems():
++                    for key, value in tconfig.config[name].items():
+                         if key not in base:
+                             config_plus[key] = value
+                             all_config_plus[key] = value
+-                    for key, value in base.iteritems():
++                    for key, value in base.items():
+                         if key not in tconfig.config[name]:
+                             config_minus[key] = value
+                             all_config_minus[key] = value
+-                    for key, value in base.iteritems():
++                    for key, value in base.items():
+                         new_value = tconfig.config.get(key)
+                         if new_value and value != new_value:
+                             desc = '%s -> %s' % (value, new_value)
+@@ -1363,7 +1363,7 @@ class Builder:
+                 summary[target] = '\n'.join(lines)
+ 
+             lines_by_target = {}
+-            for target, lines in summary.iteritems():
++            for target, lines in summary.items():
+                 if lines in lines_by_target:
+                     lines_by_target[lines].append(target)
+                 else:
+@@ -1387,7 +1387,7 @@ class Builder:
+                     Print('%s:' % arch)
+                     _OutputConfigInfo(lines)
+ 
+-            for lines, targets in lines_by_target.iteritems():
++            for lines, targets in lines_by_target.items():
+                 if not lines:
+                     continue
+                 Print('%s :' % ' '.join(sorted(targets)))
+@@ -1561,7 +1561,7 @@ class Builder:
+         self.ProcessResult(None)
+ 
+         # Create jobs to build all commits for each board
+-        for brd in board_selected.itervalues():
++        for brd in board_selected.values():
+             job = builderthread.BuilderJob()
+             job.board = brd
+             job.commits = commits
+diff --git a/u-boot-el1-hyp/tools/buildman/builderthread.py b/u-boot-el1-hyp/tools/buildman/builderthread.py
+index 8a9d47cd5..d6e70545a 100644
+--- a/u-boot-el1-hyp/tools/buildman/builderthread.py
++++ b/u-boot-el1-hyp/tools/buildman/builderthread.py
+@@ -28,7 +28,7 @@ def Mkdir(dirname, parents = False):
+     except OSError as err:
+         if err.errno == errno.EEXIST:
+             if os.path.realpath('.') == os.path.realpath(dirname):
+-                print "Cannot create the current working directory '%s'!" % dirname
++                print("Cannot create the current working directory '%s'!" % dirname)
+                 sys.exit(1)
+             pass
+         else:
+@@ -314,17 +314,17 @@ class BuilderThread(threading.Thread):
+                 else:
+                     fd.write('%s' % result.return_code)
+             with open(os.path.join(build_dir, 'toolchain'), 'w') as fd:
+-                print >>fd, 'gcc', result.toolchain.gcc
+-                print >>fd, 'path', result.toolchain.path
+-                print >>fd, 'cross', result.toolchain.cross
+-                print >>fd, 'arch', result.toolchain.arch
++                print('gcc', result.toolchain.gcc, file=fd)
++                print('path', result.toolchain.path, file=fd)
++                print('cross', result.toolchain.cross, file=fd)
++                print('arch', result.toolchain.arch, file=fd)
+                 fd.write('%s' % result.return_code)
+ 
+             # Write out the image and function size information and an objdump
+             env = result.toolchain.MakeEnvironment(self.builder.full_path)
+             with open(os.path.join(build_dir, 'env'), 'w') as fd:
+                 for var in sorted(env.keys()):
+-                    print >>fd, '%s="%s"' % (var, env[var])
++                    print('%s="%s"' % (var, env[var]), file=fd)
+             lines = []
+             for fname in ['u-boot', 'spl/u-boot-spl']:
+                 cmd = ['%snm' % self.toolchain.cross, '--size-sort', fname]
+@@ -335,7 +335,7 @@ class BuilderThread(threading.Thread):
+                     nm = self.builder.GetFuncSizesFile(result.commit_upto,
+                                     result.brd.target, fname)
+                     with open(nm, 'w') as fd:
+-                        print >>fd, nm_result.stdout,
++                        print(nm_result.stdout, end=' ', file=fd)
+ 
+                 cmd = ['%sobjdump' % self.toolchain.cross, '-h', fname]
+                 dump_result = command.RunPipe([cmd], capture=True,
+@@ -346,7 +346,7 @@ class BuilderThread(threading.Thread):
+                     objdump = self.builder.GetObjdumpFile(result.commit_upto,
+                                     result.brd.target, fname)
+                     with open(objdump, 'w') as fd:
+-                        print >>fd, dump_result.stdout,
++                        print(dump_result.stdout, end=' ', file=fd)
+                     for line in dump_result.stdout.splitlines():
+                         fields = line.split()
+                         if len(fields) > 5 and fields[1] == '.rodata':
+@@ -378,7 +378,7 @@ class BuilderThread(threading.Thread):
+                 sizes = self.builder.GetSizesFile(result.commit_upto,
+                                 result.brd.target)
+                 with open(sizes, 'w') as fd:
+-                    print >>fd, '\n'.join(lines)
++                    print('\n'.join(lines), file=fd)
+ 
+         # Write out the configuration files, with a special case for SPL
+         for dirname in ['', 'spl', 'tpl']:
+diff --git a/u-boot-el1-hyp/tools/buildman/buildman.py b/u-boot-el1-hyp/tools/buildman/buildman.py
+index f17aa15e7..0add628a6 100755
+--- a/u-boot-el1-hyp/tools/buildman/buildman.py
++++ b/u-boot-el1-hyp/tools/buildman/buildman.py
+@@ -1,4 +1,4 @@
+-#!/usr/bin/env python2
++#!/usr/bin/env python3
+ # SPDX-License-Identifier: GPL-2.0+
+ #
+ # Copyright (c) 2012 The Chromium OS Authors.
+@@ -46,11 +46,11 @@ def RunTests(skip_net_tests):
+         suite = unittest.TestLoader().loadTestsFromTestCase(module)
+         suite.run(result)
+ 
+-    print result
++    print(result)
+     for test, err in result.errors:
+-        print err
++        print(err)
+     for test, err in result.failures:
+-        print err
++        print(err)
+ 
+ 
+ options, args = cmdline.ParseArgs()
+diff --git a/u-boot-el1-hyp/tools/buildman/control.py b/u-boot-el1-hyp/tools/buildman/control.py
+index fcf531c5f..8905dd3e5 100644
+--- a/u-boot-el1-hyp/tools/buildman/control.py
++++ b/u-boot-el1-hyp/tools/buildman/control.py
+@@ -59,31 +59,31 @@ def ShowActions(series, why_selected, boards_selected, builder, options,
+         board_warnings: List of warnings obtained from board selected
+     """
+     col = terminal.Color()
+-    print 'Dry run, so not doing much. But I would do this:'
+-    print
++    print('Dry run, so not doing much. But I would do this:')
++    print()
+     if series:
+         commits = series.commits
+     else:
+         commits = None
+-    print GetActionSummary(False, commits, boards_selected,
+-            options)
+-    print 'Build directory: %s' % builder.base_dir
++    print(GetActionSummary(False, commits, boards_selected,
++            options))
++    print('Build directory: %s' % builder.base_dir)
+     if commits:
+         for upto in range(0, len(series.commits), options.step):
+             commit = series.commits[upto]
+-            print '   ', col.Color(col.YELLOW, commit.hash[:8], bright=False),
+-            print commit.subject
+-    print
++            print('   ', col.Color(col.YELLOW, commit.hash[:8], bright=False), end=' ')
++            print(commit.subject)
++    print()
+     for arg in why_selected:
+         if arg != 'all':
+-            print arg, ': %d boards' % len(why_selected[arg])
++            print(arg, ': %d boards' % len(why_selected[arg]))
+             if options.verbose:
+-                print '   %s' % ' '.join(why_selected[arg])
+-    print ('Total boards to build for each commit: %d\n' %
+-            len(why_selected['all']))
++                print('   %s' % ' '.join(why_selected[arg]))
++    print(('Total boards to build for each commit: %d\n' %
++            len(why_selected['all'])))
+     if board_warnings:
+         for warning in board_warnings:
+-            print col.Color(col.YELLOW, warning)
++            print(col.Color(col.YELLOW, warning))
+ 
+ def CheckOutputDir(output_dir):
+     """Make sure that the output directory is not within the current directory
+@@ -146,17 +146,17 @@ def DoBuildman(options, args, toolchains=None, make_func=None, boards=None,
+     if options.fetch_arch:
+         if options.fetch_arch == 'list':
+             sorted_list = toolchains.ListArchs()
+-            print col.Color(col.BLUE, 'Available architectures: %s\n' %
+-                            ' '.join(sorted_list))
++            print(col.Color(col.BLUE, 'Available architectures: %s\n' %
++                            ' '.join(sorted_list)))
+             return 0
+         else:
+             fetch_arch = options.fetch_arch
+             if fetch_arch == 'all':
+                 fetch_arch = ','.join(toolchains.ListArchs())
+-                print col.Color(col.CYAN, '\nDownloading toolchains: %s' %
+-                                fetch_arch)
++                print(col.Color(col.CYAN, '\nDownloading toolchains: %s' %
++                                fetch_arch))
+             for arch in fetch_arch.split(','):
+-                print
++                print()
+                 ret = toolchains.FetchAndInstall(arch)
+                 if ret:
+                     return ret
+@@ -167,7 +167,7 @@ def DoBuildman(options, args, toolchains=None, make_func=None, boards=None,
+         toolchains.Scan(options.list_tool_chains and options.verbose)
+     if options.list_tool_chains:
+         toolchains.List()
+-        print
++        print()
+         return 0
+ 
+     # Work out how many commits to build. We want to build everything on the
+@@ -191,7 +191,7 @@ def DoBuildman(options, args, toolchains=None, make_func=None, boards=None,
+                 sys.exit(col.Color(col.RED, "Range '%s' has no commits" %
+                                    options.branch))
+             if msg:
+-                print col.Color(col.YELLOW, msg)
++                print(col.Color(col.YELLOW, msg))
+             count += 1   # Build upstream commit also
+ 
+     if not count:
+diff --git a/u-boot-el1-hyp/tools/buildman/func_test.py b/u-boot-el1-hyp/tools/buildman/func_test.py
+index 119d02cbb..1bedeb44d 100644
+--- a/u-boot-el1-hyp/tools/buildman/func_test.py
++++ b/u-boot-el1-hyp/tools/buildman/func_test.py
+@@ -268,7 +268,7 @@ class TestFunctional(unittest.TestCase):
+                                             stdout=''.join(commit_log[:count]))
+ 
+         # Not handled, so abort
+-        print 'git log', args
++        print('git log', args)
+         sys.exit(1)
+ 
+     def _HandleCommandGitConfig(self, args):
+@@ -284,7 +284,7 @@ class TestFunctional(unittest.TestCase):
+                                          stdout='refs/heads/master\n')
+ 
+         # Not handled, so abort
+-        print 'git config', args
++        print('git config', args)
+         sys.exit(1)
+ 
+     def _HandleCommandGit(self, in_args):
+@@ -318,7 +318,7 @@ class TestFunctional(unittest.TestCase):
+             return command.CommandResult(return_code=0)
+ 
+         # Not handled, so abort
+-        print 'git', git_args, sub_cmd, args
++        print('git', git_args, sub_cmd, args)
+         sys.exit(1)
+ 
+     def _HandleCommandNm(self, args):
+@@ -349,7 +349,7 @@ class TestFunctional(unittest.TestCase):
+             if pipe_list[1] == ['wc', '-l']:
+                 wc = True
+             else:
+-                print 'invalid pipe', kwargs
++                print('invalid pipe', kwargs)
+                 sys.exit(1)
+         cmd = pipe_list[0][0]
+         args = pipe_list[0][1:]
+@@ -369,7 +369,7 @@ class TestFunctional(unittest.TestCase):
+ 
+         if not result:
+             # Not handled, so abort
+-            print 'unknown command', kwargs
++            print('unknown command', kwargs)
+             sys.exit(1)
+ 
+         if wc:
+@@ -402,14 +402,14 @@ class TestFunctional(unittest.TestCase):
+             return command.CommandResult(return_code=0)
+ 
+         # Not handled, so abort
+-        print 'make', stage
++        print('make', stage)
+         sys.exit(1)
+ 
+     # Example function to print output lines
+     def print_lines(self, lines):
+-        print len(lines)
++        print(len(lines))
+         for line in lines:
+-            print line
++            print(line)
+         #self.print_lines(terminal.GetPrintTestLines())
+ 
+     def testNoBoards(self):
+diff --git a/u-boot-el1-hyp/tools/buildman/kconfiglib.py b/u-boot-el1-hyp/tools/buildman/kconfiglib.py
+index d68af056b..d72462867 100644
+--- a/u-boot-el1-hyp/tools/buildman/kconfiglib.py
++++ b/u-boot-el1-hyp/tools/buildman/kconfiglib.py
+@@ -3473,7 +3473,7 @@ def _internal_error(msg):
+  T_BOOL, T_TRISTATE, T_HEX, T_INT, T_STRING,
+  T_DEF_BOOL, T_DEF_TRISTATE,
+  T_SELECT, T_IMPLY, T_RANGE, T_OPTION, T_ALLNOCONFIG_Y, T_ENV,
+- T_DEFCONFIG_LIST, T_MODULES, T_VISIBLE) = range(40)
++ T_DEFCONFIG_LIST, T_MODULES, T_VISIBLE) = list(range(40))
+ 
+ # The leading underscore before the function assignments below prevent pydoc
+ # from listing them. The constants could be hidden too, but they're fairly
+@@ -3515,7 +3515,7 @@ _id_keyword_re_match = re.compile(r"\s*([\w./-]+)\s*").match
+ _sym_ref_re_search = re.compile(r"\$[A-Za-z0-9_]+").search
+ 
+ # Integers representing symbol types
+-UNKNOWN, BOOL, TRISTATE, STRING, HEX, INT = range(6)
++UNKNOWN, BOOL, TRISTATE, STRING, HEX, INT = list(range(6))
+ 
+ # Strings to use for types
+ TYPENAME = {UNKNOWN: "unknown", BOOL: "bool", TRISTATE: "tristate",
+@@ -3533,7 +3533,7 @@ DEFAULT_VALUE = {BOOL: "n", TRISTATE: "n", STRING: "", INT: "", HEX: ""}
+ NO_SELECTION = 0
+ 
+ # Integers representing expression types
+-AND, OR, NOT, EQUAL, UNEQUAL = range(5)
++AND, OR, NOT, EQUAL, UNEQUAL = list(range(5))
+ 
+ # Map from tristate values to integers
+ TRI_TO_INT = {"n": 0, "m": 1, "y": 2}
+diff --git a/u-boot-el1-hyp/tools/buildman/test.py b/u-boot-el1-hyp/tools/buildman/test.py
+index de02f61be..992fd093d 100644
+--- a/u-boot-el1-hyp/tools/buildman/test.py
++++ b/u-boot-el1-hyp/tools/buildman/test.py
+@@ -97,7 +97,7 @@ boards = [
+ 
+ BASE_DIR = 'base'
+ 
+-OUTCOME_OK, OUTCOME_WARN, OUTCOME_ERR = range(3)
++OUTCOME_OK, OUTCOME_WARN, OUTCOME_ERR = list(range(3))
+ 
+ class Options:
+     """Class that holds build options"""
+@@ -455,7 +455,7 @@ class TestBuild(unittest.TestCase):
+         if use_network:
+             with test_util.capture_sys_output() as (stdout, stderr):
+                 url = self.toolchains.LocateArchUrl('arm')
+-            self.assertRegexpMatches(url, 'https://www.kernel.org/pub/tools/'
++            self.assertRegex(url, 'https://www.kernel.org/pub/tools/'
+                     'crosstool/files/bin/x86_64/.*/'
+                     'x86_64-gcc-.*-nolibc_arm-.*linux-gnueabi.tar.xz')
+ 
+diff --git a/u-boot-el1-hyp/tools/buildman/toolchain.py b/u-boot-el1-hyp/tools/buildman/toolchain.py
+index a65737fdf..74ff6f849 100644
+--- a/u-boot-el1-hyp/tools/buildman/toolchain.py
++++ b/u-boot-el1-hyp/tools/buildman/toolchain.py
+@@ -4,18 +4,18 @@
+ 
+ import re
+ import glob
+-from HTMLParser import HTMLParser
++from html.parser import HTMLParser
+ import os
+ import sys
+ import tempfile
+-import urllib2
++import urllib.request, urllib.error, urllib.parse
+ 
+ import bsettings
+ import command
+ import terminal
+ 
+ (PRIORITY_FULL_PREFIX, PRIORITY_PREFIX_GCC, PRIORITY_PREFIX_GCC_PATH,
+-    PRIORITY_CALC) = range(4)
++    PRIORITY_CALC) = list(range(4))
+ 
+ # Simple class to collect links from a page
+ class MyHTMLParser(HTMLParser):
+@@ -100,15 +100,15 @@ class Toolchain:
+                                      raise_on_error=False)
+             self.ok = result.return_code == 0
+             if verbose:
+-                print 'Tool chain test: ',
++                print('Tool chain test: ', end=' ')
+                 if self.ok:
+-                    print "OK, arch='%s', priority %d" % (self.arch,
+-                                                          self.priority)
++                    print("OK, arch='%s', priority %d" % (self.arch,
++                                                          self.priority))
+                 else:
+-                    print 'BAD'
+-                    print 'Command: ', cmd
+-                    print result.stdout
+-                    print result.stderr
++                    print('BAD')
++                    print('Command: ', cmd)
++                    print(result.stdout)
++                    print(result.stderr)
+         else:
+             self.ok = True
+ 
+@@ -138,7 +138,7 @@ class Toolchain:
+         value = ''
+         for name, value in bsettings.GetItems('toolchain-wrapper'):
+             if not value:
+-                print "Warning: Wrapper not found"
++                print("Warning: Wrapper not found")
+         if value:
+             value = value + ' '
+ 
+@@ -227,11 +227,11 @@ class Toolchains:
+         """
+         toolchains = bsettings.GetItems('toolchain')
+         if show_warning and not toolchains:
+-            print ("Warning: No tool chains. Please run 'buildman "
++            print(("Warning: No tool chains. Please run 'buildman "
+                    "--fetch-arch all' to download all available toolchains, or "
+                    "add a [toolchain] section to your buildman config file "
+                    "%s. See README for details" %
+-                   bsettings.config_fname)
++                   bsettings.config_fname))
+ 
+         paths = []
+         for name, value in toolchains:
+@@ -272,10 +272,10 @@ class Toolchains:
+         if add_it:
+             self.toolchains[toolchain.arch] = toolchain
+         elif verbose:
+-            print ("Toolchain '%s' at priority %d will be ignored because "
++            print(("Toolchain '%s' at priority %d will be ignored because "
+                    "another toolchain for arch '%s' has priority %d" %
+                    (toolchain.gcc, toolchain.priority, toolchain.arch,
+-                    self.toolchains[toolchain.arch].priority))
++                    self.toolchains[toolchain.arch].priority)))
+ 
+     def ScanPath(self, path, verbose):
+         """Scan a path for a valid toolchain
+@@ -289,9 +289,9 @@ class Toolchains:
+         fnames = []
+         for subdir in ['.', 'bin', 'usr/bin']:
+             dirname = os.path.join(path, subdir)
+-            if verbose: print "      - looking in '%s'" % dirname
++            if verbose: print("      - looking in '%s'" % dirname)
+             for fname in glob.glob(dirname + '/*gcc'):
+-                if verbose: print "         - found '%s'" % fname
++                if verbose: print("         - found '%s'" % fname)
+                 fnames.append(fname)
+         return fnames
+ 
+@@ -321,9 +321,9 @@ class Toolchains:
+         Args:
+             verbose: True to print out progress information
+         """
+-        if verbose: print 'Scanning for tool chains'
++        if verbose: print('Scanning for tool chains')
+         for name, value in self.prefixes:
+-            if verbose: print "   - scanning prefix '%s'" % value
++            if verbose: print("   - scanning prefix '%s'" % value)
+             if os.path.exists(value):
+                 self.Add(value, True, verbose, PRIORITY_FULL_PREFIX, name)
+                 continue
+@@ -335,10 +335,10 @@ class Toolchains:
+             for f in fname_list:
+                 self.Add(f, True, verbose, PRIORITY_PREFIX_GCC_PATH, name)
+             if not fname_list:
+-                raise ValueError, ("No tool chain found for prefix '%s'" %
++                raise ValueError("No tool chain found for prefix '%s'" %
+                                    value)
+         for path in self.paths:
+-            if verbose: print "   - scanning path '%s'" % path
++            if verbose: print("   - scanning path '%s'" % path)
+             fnames = self.ScanPath(path, verbose)
+             for fname in fnames:
+                 self.Add(fname, True, verbose)
+@@ -346,13 +346,13 @@ class Toolchains:
+     def List(self):
+         """List out the selected toolchains for each architecture"""
+         col = terminal.Color()
+-        print col.Color(col.BLUE, 'List of available toolchains (%d):' %
+-                        len(self.toolchains))
++        print(col.Color(col.BLUE, 'List of available toolchains (%d):' %
++                        len(self.toolchains)))
+         if len(self.toolchains):
+-            for key, value in sorted(self.toolchains.iteritems()):
+-                print '%-10s: %s' % (key, value.gcc)
++            for key, value in sorted(self.toolchains.items()):
++                print('%-10s: %s' % (key, value.gcc))
+         else:
+-            print 'None'
++            print('None')
+ 
+     def Select(self, arch):
+         """Returns the toolchain for a given architecture
+@@ -370,7 +370,7 @@ class Toolchains:
+                         return self.toolchains[alias]
+ 
+         if not arch in self.toolchains:
+-            raise ValueError, ("No tool chain found for arch '%s'" % arch)
++            raise ValueError("No tool chain found for arch '%s'" % arch)
+         return self.toolchains[arch]
+ 
+     def ResolveReferences(self, var_dict, args):
+@@ -464,8 +464,8 @@ class Toolchains:
+         links = []
+         for version in versions:
+             url = '%s/%s/%s/' % (base, arch, version)
+-            print 'Checking: %s' % url
+-            response = urllib2.urlopen(url)
++            print('Checking: %s' % url)
++            response = urllib.request.urlopen(url)
+             html = response.read()
+             parser = MyHTMLParser(fetch_arch)
+             parser.feed(html)
+@@ -488,10 +488,10 @@ class Toolchains:
+                 Full path to the downloaded archive file in that directory,
+                     or None if there was an error while downloading
+         """
+-        print 'Downloading: %s' % url
++        print('Downloading: %s' % url)
+         leaf = url.split('/')[-1]
+         tmpdir = tempfile.mkdtemp('.buildman')
+-        response = urllib2.urlopen(url)
++        response = urllib.request.urlopen(url)
+         fname = os.path.join(tmpdir, leaf)
+         fd = open(fname, 'wb')
+         meta = response.info()
+@@ -504,7 +504,7 @@ class Toolchains:
+         while True:
+             buffer = response.read(block_size)
+             if not buffer:
+-                print chr(8) * (len(status) + 1), '\r',
++                print(chr(8) * (len(status) + 1), '\r', end=' ')
+                 break
+ 
+             done += len(buffer)
+@@ -512,11 +512,11 @@ class Toolchains:
+             status = r'%10d MiB  [%3d%%]' % (done / 1024 / 1024,
+                                              done * 100 / size)
+             status = status + chr(8) * (len(status) + 1)
+-            print status,
++            print(status, end=' ')
+             sys.stdout.flush()
+         fd.close()
+         if done != size:
+-            print 'Error, failed to download'
++            print('Error, failed to download')
+             os.remove(fname)
+             fname = None
+         return tmpdir, fname
+@@ -565,11 +565,11 @@ class Toolchains:
+         """
+         # Fist get the URL for this architecture
+         col = terminal.Color()
+-        print col.Color(col.BLUE, "Downloading toolchain for arch '%s'" % arch)
++        print(col.Color(col.BLUE, "Downloading toolchain for arch '%s'" % arch))
+         url = self.LocateArchUrl(arch)
+         if not url:
+-            print ("Cannot find toolchain for arch '%s' - use 'list' to list" %
+-                   arch)
++            print(("Cannot find toolchain for arch '%s' - use 'list' to list" %
++                   arch))
+             return 2
+         home = os.environ['HOME']
+         dest = os.path.join(home, '.buildman-toolchains')
+@@ -580,28 +580,28 @@ class Toolchains:
+         tmpdir, tarfile = self.Download(url)
+         if not tarfile:
+             return 1
+-        print col.Color(col.GREEN, 'Unpacking to: %s' % dest),
++        print(col.Color(col.GREEN, 'Unpacking to: %s' % dest), end=' ')
+         sys.stdout.flush()
+         path = self.Unpack(tarfile, dest)
+         os.remove(tarfile)
+         os.rmdir(tmpdir)
+-        print
++        print()
+ 
+         # Check that the toolchain works
+-        print col.Color(col.GREEN, 'Testing')
++        print(col.Color(col.GREEN, 'Testing'))
+         dirpath = os.path.join(dest, path)
+         compiler_fname_list = self.ScanPath(dirpath, True)
+         if not compiler_fname_list:
+-            print 'Could not locate C compiler - fetch failed.'
++            print('Could not locate C compiler - fetch failed.')
+             return 1
+         if len(compiler_fname_list) != 1:
+-            print col.Color(col.RED, 'Warning, ambiguous toolchains: %s' %
+-                            ', '.join(compiler_fname_list))
++            print(col.Color(col.RED, 'Warning, ambiguous toolchains: %s' %
++                            ', '.join(compiler_fname_list)))
+         toolchain = Toolchain(compiler_fname_list[0], True, True)
+ 
+         # Make sure that it will be found by buildman
+         if not self.TestSettingsHasPath(dirpath):
+-            print ("Adding 'download' to config file '%s'" %
+-                   bsettings.config_fname)
++            print(("Adding 'download' to config file '%s'" %
++                   bsettings.config_fname))
+             bsettings.SetItem('toolchain', 'download', '%s/*/*' % dest)
+         return 0
+diff --git a/u-boot-el1-hyp/tools/dtoc/dtb_platdata.py b/u-boot-el1-hyp/tools/dtoc/dtb_platdata.py
+index ca580b45d..4bd6fbf82 100644
+--- a/u-boot-el1-hyp/tools/dtoc/dtb_platdata.py
++++ b/u-boot-el1-hyp/tools/dtoc/dtb_platdata.py
+@@ -356,14 +356,14 @@ class DtbPlatdata(object):
+             fields = {}
+ 
+             # Get a list of all the valid properties in this node.
+-            for name, prop in node.props.items():
++            for name, prop in list(node.props.items()):
+                 if name not in PROP_IGNORE_LIST and name[0] != '#':
+                     fields[name] = copy.deepcopy(prop)
+ 
+             # If we've seen this node_name before, update the existing struct.
+             if node_name in structs:
+                 struct = structs[node_name]
+-                for name, prop in fields.items():
++                for name, prop in list(fields.items()):
+                     oldprop = struct.get(name)
+                     if oldprop:
+                         oldprop.Widen(prop)
+@@ -378,7 +378,7 @@ class DtbPlatdata(object):
+         for node in self._valid_nodes:
+             node_name, _ = get_compat_name(node)
+             struct = structs[node_name]
+-            for name, prop in node.props.items():
++            for name, prop in list(node.props.items()):
+                 if name not in PROP_IGNORE_LIST and name[0] != '#':
+                     prop.Widen(struct[name])
+             upto += 1
+@@ -402,7 +402,7 @@ class DtbPlatdata(object):
+         """
+         for node in self._valid_nodes:
+             node.phandles = set()
+-            for pname, prop in node.props.items():
++            for pname, prop in list(node.props.items()):
+                 if pname in PROP_IGNORE_LIST or pname[0] == '#':
+                     continue
+                 info = self.get_phandle_argc(prop, node.name)
+@@ -449,7 +449,7 @@ class DtbPlatdata(object):
+                 self.out(';\n')
+             self.out('};\n')
+ 
+-        for alias, struct_name in self._aliases.iteritems():
++        for alias, struct_name in self._aliases.items():
+             self.out('#define %s%s %s%s\n'% (STRUCT_PREFIX, alias,
+                                              STRUCT_PREFIX, struct_name))
+ 
+@@ -463,7 +463,7 @@ class DtbPlatdata(object):
+         var_name = conv_name_to_c(node.name)
+         self.buf('static const struct %s%s %s%s = {\n' %
+                  (STRUCT_PREFIX, struct_name, VAL_PREFIX, var_name))
+-        for pname, prop in node.props.items():
++        for pname, prop in list(node.props.items()):
+             if pname in PROP_IGNORE_LIST or pname[0] == '#':
+                 continue
+             member_name = conv_name_to_c(prop.name)
+@@ -497,7 +497,7 @@ class DtbPlatdata(object):
+                         vals.append(get_value(prop.type, val))
+ 
+                     # Put 8 values per line to avoid very long lines.
+-                    for i in xrange(0, len(vals), 8):
++                    for i in range(0, len(vals), 8):
+                         if i:
+                             self.buf(',\n\t\t')
+                         self.buf(', '.join(vals[i:i + 8]))
+diff --git a/u-boot-el1-hyp/tools/dtoc/dtoc.py b/u-boot-el1-hyp/tools/dtoc/dtoc.py
+index 2277af9bf..5f3f3750f 100755
+--- a/u-boot-el1-hyp/tools/dtoc/dtoc.py
++++ b/u-boot-el1-hyp/tools/dtoc/dtoc.py
+@@ -1,4 +1,4 @@
+-#!/usr/bin/env python2
++#!/usr/bin/env python3
+ # SPDX-License-Identifier: GPL-2.0+
+ #
+ # Copyright (C) 2016 Google, Inc
+@@ -64,11 +64,11 @@ def run_tests(args):
+             suite = unittest.TestLoader().loadTestsFromTestCase(module)
+         suite.run(result)
+ 
+-    print result
++    print(result)
+     for _, err in result.errors:
+-        print err
++        print(err)
+     for _, err in result.failures:
+-        print err
++        print(err)
+ 
+ def RunTestCoverage():
+     """Run the tests and check that we get 100% coverage"""
+diff --git a/u-boot-el1-hyp/tools/dtoc/fdt.py b/u-boot-el1-hyp/tools/dtoc/fdt.py
+index 9ad72f89e..58bcc6cb3 100644
+--- a/u-boot-el1-hyp/tools/dtoc/fdt.py
++++ b/u-boot-el1-hyp/tools/dtoc/fdt.py
+@@ -21,7 +21,7 @@ from libfdt import QUIET_NOTFOUND
+ # so it is fairly efficient.
+ 
+ # A list of types we support
+-(TYPE_BYTE, TYPE_INT, TYPE_STRING, TYPE_BOOL, TYPE_INT64) = range(5)
++(TYPE_BYTE, TYPE_INT, TYPE_STRING, TYPE_BOOL, TYPE_INT64) = list(range(5))
+ 
+ def CheckErr(errnum, msg):
+     if errnum:
+@@ -449,7 +449,7 @@ class Node:
+         # Sync properties now, whose offsets should not have been disturbed.
+         # We do this after subnodes, since this disturbs the offsets of these
+         # properties.
+-        prop_list = sorted(self.props.values(), key=lambda prop: prop._offset,
++        prop_list = sorted(list(self.props.values()), key=lambda prop: prop._offset,
+                            reverse=True)
+         for prop in prop_list:
+             prop.Sync(auto_resize)
+diff --git a/u-boot-el1-hyp/tools/dtoc/fdt_util.py b/u-boot-el1-hyp/tools/dtoc/fdt_util.py
+index 5fbfc8877..2b1ec9f1b 100644
+--- a/u-boot-el1-hyp/tools/dtoc/fdt_util.py
++++ b/u-boot-el1-hyp/tools/dtoc/fdt_util.py
+@@ -49,7 +49,7 @@ def fdt_cells_to_cpu(val, cells):
+     """
+     if not cells:
+         return 0
+-    out = long(fdt32_to_cpu(val[0]))
++    out = int(fdt32_to_cpu(val[0]))
+     if cells == 2:
+         out = out << 32 | fdt32_to_cpu(val[1])
+     return out
+diff --git a/u-boot-el1-hyp/tools/dtoc/test_dtoc.py b/u-boot-el1-hyp/tools/dtoc/test_dtoc.py
+index cb6d6e7ba..bc378b98a 100644
+--- a/u-boot-el1-hyp/tools/dtoc/test_dtoc.py
++++ b/u-boot-el1-hyp/tools/dtoc/test_dtoc.py
+@@ -97,8 +97,8 @@ class TestDtoc(unittest.TestCase):
+         if expected != actual:
+             self._WritePythonString('/tmp/binman.expected', expected)
+             self._WritePythonString('/tmp/binman.actual', actual)
+-            print 'Failures written to /tmp/binman.{expected,actual}'
+-        self.assertEquals(expected, actual)
++            print('Failures written to /tmp/binman.{expected,actual}')
++        self.assertEqual(expected, actual)
+ 
+     def test_name(self):
+         """Test conversion of device tree names to C identifiers"""
+diff --git a/u-boot-el1-hyp/tools/dtoc/test_fdt.py b/u-boot-el1-hyp/tools/dtoc/test_fdt.py
+index 8d70dd2a2..1dbc455e9 100755
+--- a/u-boot-el1-hyp/tools/dtoc/test_fdt.py
++++ b/u-boot-el1-hyp/tools/dtoc/test_fdt.py
+@@ -535,11 +535,11 @@ def RunTests(args):
+             suite = unittest.TestLoader().loadTestsFromTestCase(module)
+         suite.run(result)
+ 
+-    print result
++    print(result)
+     for _, err in result.errors:
+-        print err
++        print(err)
+     for _, err in result.failures:
+-        print err
++        print(err)
+ 
+ if __name__ != '__main__':
+     sys.exit(1)
+diff --git a/u-boot-el1-hyp/tools/genboardscfg.py b/u-boot-el1-hyp/tools/genboardscfg.py
+index e9bbd15e1..467183ab1 100755
+--- a/u-boot-el1-hyp/tools/genboardscfg.py
++++ b/u-boot-el1-hyp/tools/genboardscfg.py
+@@ -1,4 +1,4 @@
+-#!/usr/bin/env python2
++#!/usr/bin/env python3
+ # SPDX-License-Identifier: GPL-2.0+
+ #
+ # Author: Masahiro Yamada <yamada.m@jp.panasonic.com>
+@@ -168,7 +168,7 @@ class KconfigScanner:
+         warnings = self._conf.load_config(self._tmpfile)
+         if warnings:
+             for warning in warnings:
+-                print '%s: %s' % (defconfig, warning)
++                print('%s: %s' % (defconfig, warning))
+ 
+         try_remove(self._tmpfile)
+         self._tmpfile = None
+@@ -177,7 +177,7 @@ class KconfigScanner:
+ 
+         # Get the value of CONFIG_SYS_ARCH, CONFIG_SYS_CPU, ... etc.
+         # Set '-' if the value is empty.
+-        for key, symbol in self._SYMBOL_TABLE.items():
++        for key, symbol in list(self._SYMBOL_TABLE.items()):
+             value = self._conf.get_symbol(symbol).get_value()
+             if value:
+                 params[key] = value
+@@ -290,7 +290,7 @@ class MaintainersDatabase:
+           'Active', 'Orphan' or '-'.
+         """
+         if not target in self.database:
+-            print >> sys.stderr, "WARNING: no status info for '%s'" % target
++            print("WARNING: no status info for '%s'" % target, file=sys.stderr)
+             return '-'
+ 
+         tmp = self.database[target][0]
+@@ -301,8 +301,8 @@ class MaintainersDatabase:
+         elif tmp.startswith('Orphan'):
+             return 'Orphan'
+         else:
+-            print >> sys.stderr, ("WARNING: %s: unknown status for '%s'" %
+-                                  (tmp, target))
++            print(("WARNING: %s: unknown status for '%s'" %
++                                  (tmp, target)), file=sys.stderr)
+             return '-'
+ 
+     def get_maintainers(self, target):
+@@ -313,7 +313,7 @@ class MaintainersDatabase:
+           they are separated with colons.
+         """
+         if not target in self.database:
+-            print >> sys.stderr, "WARNING: no maintainers for '%s'" % target
++            print("WARNING: no maintainers for '%s'" % target, file=sys.stderr)
+             return ''
+ 
+         return ':'.join(self.database[target][1])
+@@ -418,7 +418,7 @@ def gen_boards_cfg(output, jobs=1, force=False):
+     check_top_directory()
+ 
+     if not force and output_is_new(output):
+-        print "%s is up to date. Nothing to do." % output
++        print("%s is up to date. Nothing to do." % output)
+         sys.exit(0)
+ 
+     params_list = scan_defconfigs(jobs)
+diff --git a/u-boot-el1-hyp/tools/microcode-tool.py b/u-boot-el1-hyp/tools/microcode-tool.py
+index 249a33b8c..24c02c4fc 100755
+--- a/u-boot-el1-hyp/tools/microcode-tool.py
++++ b/u-boot-el1-hyp/tools/microcode-tool.py
+@@ -1,4 +1,4 @@
+-#!/usr/bin/env python2
++#!/usr/bin/env python3
+ # SPDX-License-Identifier: GPL-2.0+
+ #
+ # Copyright (c) 2014 Google, Inc
+@@ -126,15 +126,15 @@ def List(date, microcodes, model):
+         microcodes:     Dict of Microcode objects indexed by name
+         model:          Model string to search for, or None
+     """
+-    print 'Date: %s' % date
++    print('Date: %s' % date)
+     if model:
+         mcode_list, tried = FindMicrocode(microcodes, model.lower())
+-        print 'Matching models %s:' % (', '.join(tried))
++        print('Matching models %s:' % (', '.join(tried)))
+     else:
+-        print 'All models:'
+-        mcode_list = [microcodes[m] for m in microcodes.keys()]
++        print('All models:')
++        mcode_list = [microcodes[m] for m in list(microcodes.keys())]
+     for mcode in mcode_list:
+-        print '%-20s: model %s' % (mcode.name, mcode.model)
++        print('%-20s: model %s' % (mcode.name, mcode.model))
+ 
+ def FindMicrocode(microcodes, model):
+     """Find all the microcode chunks which match the given model.
+@@ -164,7 +164,7 @@ def FindMicrocode(microcodes, model):
+     for i in range(3):
+         abbrev = model[:-i] if i else model
+         tried.append(abbrev)
+-        for mcode in microcodes.values():
++        for mcode in list(microcodes.values()):
+             if mcode.model.startswith(abbrev):
+                 found.append(mcode)
+         if found:
+@@ -229,17 +229,17 @@ data = <%s
+     args += [mcode.words[i] for i in range(7)]
+     args.append(words)
+     if outfile == '-':
+-        print out % tuple(args)
++        print(out % tuple(args))
+     else:
+         if not outfile:
+             if not os.path.exists(MICROCODE_DIR):
+-                print >> sys.stderr, "Creating directory '%s'" % MICROCODE_DIR
++                print("Creating directory '%s'" % MICROCODE_DIR, file=sys.stderr)
+                 os.makedirs(MICROCODE_DIR)
+             outfile = os.path.join(MICROCODE_DIR, mcode.name + '.dtsi')
+-        print >> sys.stderr, "Writing microcode for '%s' to '%s'" % (
+-                ', '.join([mcode.name for mcode in mcodes]), outfile)
++        print("Writing microcode for '%s' to '%s'" % (
++                ', '.join([mcode.name for mcode in mcodes]), outfile), file=sys.stderr)
+         with open(outfile, 'w') as fd:
+-            print >> fd, out % tuple(args)
++            print(out % tuple(args), file=fd)
+ 
+ def MicrocodeTool():
+     """Run the microcode tool"""
+@@ -289,14 +289,14 @@ def MicrocodeTool():
+     if cmd == 'list':
+         List(date, microcodes, options.model)
+     elif cmd == 'license':
+-        print '\n'.join(license_text)
++        print('\n'.join(license_text))
+     elif cmd == 'create':
+         if not options.model:
+             parser.error('You must specify a model to create')
+         model = options.model.lower()
+         if options.model == 'all':
+             options.multiple = True
+-            mcode_list = microcodes.values()
++            mcode_list = list(microcodes.values())
+             tried = []
+         else:
+             mcode_list, tried = FindMicrocode(microcodes, model)
+diff --git a/u-boot-el1-hyp/tools/moveconfig.py b/u-boot-el1-hyp/tools/moveconfig.py
+index 1a214c560..f58dc3c19 100755
+--- a/u-boot-el1-hyp/tools/moveconfig.py
++++ b/u-boot-el1-hyp/tools/moveconfig.py
+@@ -1,4 +1,4 @@
+-#!/usr/bin/env python2
++#!/usr/bin/env python3
+ # SPDX-License-Identifier: GPL-2.0+
+ #
+ # Author: Masahiro Yamada <yamada.masahiro@socionext.com>
+@@ -304,7 +304,7 @@ import glob
+ import multiprocessing
+ import optparse
+ import os
+-import Queue
++import queue
+ import re
+ import shutil
+ import subprocess
+@@ -430,8 +430,8 @@ def get_matched_defconfigs(defconfigs_file):
+             line = line.split(' ')[0]  # handle 'git log' input
+         matched = get_matched_defconfig(line)
+         if not matched:
+-            print >> sys.stderr, "warning: %s:%d: no defconfig matched '%s'" % \
+-                                                 (defconfigs_file, i + 1, line)
++            print("warning: %s:%d: no defconfig matched '%s'" % \
++                                                 (defconfigs_file, i + 1, line), file=sys.stderr)
+ 
+         defconfigs += matched
+ 
+@@ -474,11 +474,11 @@ def show_diff(a, b, file_path, color_enabled):
+ 
+     for line in diff:
+         if line[0] == '-' and line[1] != '-':
+-            print color_text(color_enabled, COLOR_RED, line),
++            print(color_text(color_enabled, COLOR_RED, line), end=' ')
+         elif line[0] == '+' and line[1] != '+':
+-            print color_text(color_enabled, COLOR_GREEN, line),
++            print(color_text(color_enabled, COLOR_GREEN, line), end=' ')
+         else:
+-            print line,
++            print(line, end=' ')
+ 
+ def extend_matched_lines(lines, matched, pre_patterns, post_patterns, extend_pre,
+                          extend_post):
+@@ -534,9 +534,9 @@ def extend_matched_lines(lines, matched, pre_patterns, post_patterns, extend_pre
+ def confirm(options, prompt):
+     if not options.yes:
+         while True:
+-            choice = raw_input('{} [y/n]: '.format(prompt))
++            choice = input('{} [y/n]: '.format(prompt))
+             choice = choice.lower()
+-            print choice
++            print(choice)
+             if choice == 'y' or choice == 'n':
+                 break
+ 
+@@ -799,7 +799,7 @@ class Progress:
+ 
+     def show(self):
+         """Display the progress."""
+-        print ' %d defconfigs out of %d\r' % (self.current, self.total),
++        print(' %d defconfigs out of %d\r' % (self.current, self.total), end=' ')
+         sys.stdout.flush()
+ 
+ 
+@@ -1271,7 +1271,7 @@ class Slot:
+         log += '\n'.join([ '    ' + s for s in self.log.split('\n') ])
+         # Some threads are running in parallel.
+         # Print log atomically to not mix up logs from different threads.
+-        print >> (sys.stdout if success else sys.stderr), log
++        print(log, file=(sys.stdout if success else sys.stderr))
+ 
+         if not success:
+             if self.options.exit_on_error:
+@@ -1370,8 +1370,8 @@ class Slots:
+             msg = "The following boards were not processed due to error:\n"
+             msg += boards
+             msg += "(the list has been saved in %s)\n" % output_file
+-            print >> sys.stderr, color_text(self.options.color, COLOR_LIGHT_RED,
+-                                            msg)
++            print(color_text(self.options.color, COLOR_LIGHT_RED,
++                                            msg), file=sys.stderr)
+ 
+             with open(output_file, 'w') as f:
+                 f.write(boards)
+@@ -1390,8 +1390,8 @@ class Slots:
+             msg += "It is highly recommended to check them manually:\n"
+             msg += boards
+             msg += "(the list has been saved in %s)\n" % output_file
+-            print >> sys.stderr, color_text(self.options.color, COLOR_YELLOW,
+-                                            msg)
++            print(color_text(self.options.color, COLOR_YELLOW,
++                                            msg), file=sys.stderr)
+ 
+             with open(output_file, 'w') as f:
+                 f.write(boards)
+@@ -1407,11 +1407,11 @@ class ReferenceSource:
+           commit: commit to git-clone
+         """
+         self.src_dir = tempfile.mkdtemp()
+-        print "Cloning git repo to a separate work directory..."
++        print("Cloning git repo to a separate work directory...")
+         subprocess.check_output(['git', 'clone', os.getcwd(), '.'],
+                                 cwd=self.src_dir)
+-        print "Checkout '%s' to build the original autoconf.mk." % \
+-            subprocess.check_output(['git', 'rev-parse', '--short', commit]).strip()
++        print("Checkout '%s' to build the original autoconf.mk." % \
++            subprocess.check_output(['git', 'rev-parse', '--short', commit]).strip())
+         subprocess.check_output(['git', 'checkout', commit],
+                                 stderr=subprocess.STDOUT, cwd=self.src_dir)
+ 
+@@ -1439,14 +1439,14 @@ def move_config(toolchains, configs, options, db_queue):
+     """
+     if len(configs) == 0:
+         if options.force_sync:
+-            print 'No CONFIG is specified. You are probably syncing defconfigs.',
++            print('No CONFIG is specified. You are probably syncing defconfigs.', end=' ')
+         elif options.build_db:
+-            print 'Building %s database' % CONFIG_DATABASE
++            print('Building %s database' % CONFIG_DATABASE)
+         else:
+-            print 'Neither CONFIG nor --force-sync is specified. Nothing will happen.',
++            print('Neither CONFIG nor --force-sync is specified. Nothing will happen.', end=' ')
+     else:
+-        print 'Move ' + ', '.join(configs),
+-    print '(jobs: %d)\n' % options.jobs
++        print('Move ' + ', '.join(configs), end=' ')
++    print('(jobs: %d)\n' % options.jobs)
+ 
+     if options.git_ref:
+         reference_src = ReferenceSource(options.git_ref)
+@@ -1476,7 +1476,7 @@ def move_config(toolchains, configs, options, db_queue):
+     while not slots.empty():
+         time.sleep(SLEEP_TIME)
+ 
+-    print ''
++    print('')
+     slots.show_failed_boards()
+     slots.show_suspicious_boards()
+ 
+@@ -1650,15 +1650,15 @@ def do_imply_config(config_list, add_imply, imply_flags, skip_added,
+     for config in config_list:
+         defconfigs = defconfig_db.get(config)
+         if not defconfigs:
+-            print '%s not found in any defconfig' % config
++            print('%s not found in any defconfig' % config)
+             continue
+ 
+         # Get the set of defconfigs without this one (since a config cannot
+         # imply itself)
+         non_defconfigs = all_defconfigs - defconfigs
+         num_defconfigs = len(defconfigs)
+-        print '%s found in %d/%d defconfigs' % (config, num_defconfigs,
+-                                                len(all_configs))
++        print('%s found in %d/%d defconfigs' % (config, num_defconfigs,
++                                                len(all_configs)))
+ 
+         # This will hold the results: key=config, value=defconfigs containing it
+         imply_configs = {}
+@@ -1695,7 +1695,7 @@ def do_imply_config(config_list, add_imply, imply_flags, skip_added,
+             if common_defconfigs:
+                 skip = False
+                 if find_superset:
+-                    for prev in imply_configs.keys():
++                    for prev in list(imply_configs.keys()):
+                         prev_count = len(imply_configs[prev])
+                         count = len(common_defconfigs)
+                         if (prev_count > count and
+@@ -1765,15 +1765,15 @@ def do_imply_config(config_list, add_imply, imply_flags, skip_added,
+                             add_list[fname].append(linenum)
+ 
+             if show and kconfig_info != 'skip':
+-                print '%5d : %-30s%-25s %s' % (num_common, iconfig.ljust(30),
+-                                              kconfig_info, missing_str)
++                print('%5d : %-30s%-25s %s' % (num_common, iconfig.ljust(30),
++                                              kconfig_info, missing_str))
+ 
+         # Having collected a list of things to add, now we add them. We process
+         # each file from the largest line number to the smallest so that
+         # earlier additions do not affect our line numbers. E.g. if we added an
+         # imply at line 20 it would change the position of each line after
+         # that.
+-        for fname, linenums in add_list.iteritems():
++        for fname, linenums in add_list.items():
+             for linenum in sorted(linenums, reverse=True):
+                 add_imply_rule(config[CONFIG_LEN:], fname, linenum)
+ 
+@@ -1850,11 +1850,11 @@ def main():
+             for flag in options.imply_flags.split(','):
+                 bad = flag not in IMPLY_FLAGS
+                 if bad:
+-                    print "Invalid flag '%s'" % flag
++                    print("Invalid flag '%s'" % flag)
+                 if flag == 'help' or bad:
+-                    print "Imply flags: (separate with ',')"
+-                    for name, info in IMPLY_FLAGS.iteritems():
+-                        print ' %-15s: %s' % (name, info[1])
++                    print("Imply flags: (separate with ',')")
++                    for name, info in IMPLY_FLAGS.items():
++                        print(' %-15s: %s' % (name, info[1]))
+                     parser.print_usage()
+                     sys.exit(1)
+                 imply_flags |= IMPLY_FLAGS[flag][0]
+@@ -1864,7 +1864,7 @@ def main():
+         return
+ 
+     config_db = {}
+-    db_queue = Queue.Queue()
++    db_queue = queue.Queue()
+     t = DatabaseThread(config_db, db_queue)
+     t.setDaemon(True)
+     t.start()
+@@ -1898,7 +1898,7 @@ def main():
+ 
+     if options.build_db:
+         with open(CONFIG_DATABASE, 'w') as fd:
+-            for defconfig, configs in config_db.iteritems():
++            for defconfig, configs in config_db.items():
+                 fd.write('%s\n' % defconfig)
+                 for config in sorted(configs.keys()):
+                     fd.write('   %s=%s\n' % (config, configs[config]))
+diff --git a/u-boot-el1-hyp/tools/patman/checkpatch.py b/u-boot-el1-hyp/tools/patman/checkpatch.py
+index d47ea438b..40097370b 100644
+--- a/u-boot-el1-hyp/tools/patman/checkpatch.py
++++ b/u-boot-el1-hyp/tools/patman/checkpatch.py
+@@ -3,12 +3,12 @@
+ #
+ 
+ import collections
+-import command
+-import gitutil
++from . import command
++from . import gitutil
+ import os
+ import re
+ import sys
+-import terminal
++from . import terminal
+ 
+ def FindCheckPatch():
+     top_level = gitutil.GetTopLevel()
+@@ -150,8 +150,8 @@ def CheckPatches(verbose, args):
+             error_count += result.errors
+             warning_count += result.warnings
+             check_count += result.checks
+-            print('%d errors, %d warnings, %d checks for %s:' % (result.errors,
+-                    result.warnings, result.checks, col.Color(col.BLUE, fname)))
++            print(('%d errors, %d warnings, %d checks for %s:' % (result.errors,
++                    result.warnings, result.checks, col.Color(col.BLUE, fname))))
+             if (len(result.problems) != result.errors + result.warnings +
+                     result.checks):
+                 print("Internal error: some problems lost")
+@@ -160,7 +160,7 @@ def CheckPatches(verbose, args):
+                     GetWarningMsg(col, item.get('type', '<unknown>'),
+                         item.get('file', '<unknown>'),
+                         item.get('line', 0), item.get('msg', 'message')))
+-            print
++            print()
+             #print(stdout)
+     if error_count or warning_count or check_count:
+         str = 'checkpatch.pl found %d error(s), %d warning(s), %d checks(s)'
+@@ -169,6 +169,6 @@ def CheckPatches(verbose, args):
+             color = col.YELLOW
+         if error_count:
+             color = col.RED
+-        print(col.Color(color, str % (error_count, warning_count, check_count)))
++        print((col.Color(color, str % (error_count, warning_count, check_count))))
+         return False
+     return True
+diff --git a/u-boot-el1-hyp/tools/patman/command.py b/u-boot-el1-hyp/tools/patman/command.py
+index 14edcdaff..e2f84ecd4 100644
+--- a/u-boot-el1-hyp/tools/patman/command.py
++++ b/u-boot-el1-hyp/tools/patman/command.py
+@@ -3,7 +3,7 @@
+ #
+ 
+ import os
+-import cros_subprocess
++from . import cros_subprocess
+ 
+ """Shell command ease-ups for Python."""
+ 
+diff --git a/u-boot-el1-hyp/tools/patman/func_test.py b/u-boot-el1-hyp/tools/patman/func_test.py
+index d79e71607..391d38ae6 100644
+--- a/u-boot-el1-hyp/tools/patman/func_test.py
++++ b/u-boot-el1-hyp/tools/patman/func_test.py
+@@ -12,15 +12,15 @@ import sys
+ import tempfile
+ import unittest
+ 
+-import gitutil
+-import patchstream
+-import settings
++from . import gitutil
++from . import patchstream
++from . import settings
+ 
+ 
+ @contextlib.contextmanager
+ def capture():
+     import sys
+-    from cStringIO import StringIO
++    from io import StringIO
+     oldout,olderr = sys.stdout, sys.stderr
+     try:
+         out=[StringIO(), StringIO()]
+@@ -124,10 +124,10 @@ class TestFunctional(unittest.TestCase):
+         """
+         process_tags = True
+         ignore_bad_tags = True
+-        stefan = u'Stefan Brüns <stefan.bruens@rwth-aachen.de>'
++        stefan = 'Stefan Brüns <stefan.bruens@rwth-aachen.de>'
+         rick = 'Richard III <richard@palace.gov>'
+-        mel = u'Lord Mëlchett <clergy@palace.gov>'
+-        ed = u'Lond Edmund Blackaddër <weasel@blackadder.org'
++        mel = 'Lord Mëlchett <clergy@palace.gov>'
++        ed = 'Lond Edmund Blackaddër <weasel@blackadder.org'
+         fred = 'Fred Bloggs <f.bloggs@napier.net>'
+         add_maintainers = [stefan, rick]
+         dry_run = True
+diff --git a/u-boot-el1-hyp/tools/patman/get_maintainer.py b/u-boot-el1-hyp/tools/patman/get_maintainer.py
+index 0ffb55a82..91db0451e 100644
+--- a/u-boot-el1-hyp/tools/patman/get_maintainer.py
++++ b/u-boot-el1-hyp/tools/patman/get_maintainer.py
+@@ -2,8 +2,8 @@
+ # Copyright (c) 2012 The Chromium OS Authors.
+ #
+ 
+-import command
+-import gitutil
++from . import command
++from . import gitutil
+ import os
+ 
+ def FindGetMaintainer():
+diff --git a/u-boot-el1-hyp/tools/patman/gitutil.py b/u-boot-el1-hyp/tools/patman/gitutil.py
+index 9905bb0bb..3d372183a 100644
+--- a/u-boot-el1-hyp/tools/patman/gitutil.py
++++ b/u-boot-el1-hyp/tools/patman/gitutil.py
+@@ -2,16 +2,16 @@
+ # Copyright (c) 2011 The Chromium OS Authors.
+ #
+ 
+-import command
++from . import command
+ import re
+ import os
+-import series
++from . import series
+ import subprocess
+ import sys
+-import terminal
++from . import terminal
+ 
+-import checkpatch
+-import settings
++from . import checkpatch
++from . import settings
+ 
+ # True to use --no-decorate - we check this in Setup()
+ use_no_decorate = True
+@@ -496,7 +496,7 @@ def LookupEmail(lookup_name, alias=None, raise_on_error=True, level=0):
+         if raise_on_error:
+             raise OSError(msg)
+         else:
+-            print(col.Color(col.RED, msg))
++            print((col.Color(col.RED, msg)))
+             return out_list
+ 
+     if lookup_name:
+@@ -505,7 +505,7 @@ def LookupEmail(lookup_name, alias=None, raise_on_error=True, level=0):
+             if raise_on_error:
+                 raise ValueError(msg)
+             else:
+-                print(col.Color(col.RED, msg))
++                print((col.Color(col.RED, msg)))
+                 return out_list
+         for item in alias[lookup_name]:
+             todo = LookupEmail(item, alias, raise_on_error, level + 1)
+diff --git a/u-boot-el1-hyp/tools/patman/patchstream.py b/u-boot-el1-hyp/tools/patman/patchstream.py
+index b6455b0fa..5493d697f 100644
+--- a/u-boot-el1-hyp/tools/patman/patchstream.py
++++ b/u-boot-el1-hyp/tools/patman/patchstream.py
+@@ -8,10 +8,10 @@ import re
+ import shutil
+ import tempfile
+ 
+-import command
+-import commit
+-import gitutil
+-from series import Series
++from . import command
++from . import commit
++from . import gitutil
++from .series import Series
+ 
+ # Tags that we detect and remove
+ re_remove = re.compile('^BUG=|^TEST=|^BRANCH=|^Change-Id:|^Review URL:'
+@@ -483,12 +483,12 @@ def FixPatches(series, fnames):
+         commit.patch = fname
+         result = FixPatch(backup_dir, fname, series, commit)
+         if result:
+-            print('%d warnings for %s:' % (len(result), fname))
++            print(('%d warnings for %s:' % (len(result), fname)))
+             for warn in result:
+-                print('\t', warn)
+-            print
++                print(('\t', warn))
++            print()
+         count += 1
+-    print('Cleaned %d patches' % count)
++    print(('Cleaned %d patches' % count))
+ 
+ def InsertCoverLetter(fname, series, count):
+     """Inserts a cover letter with the required info into patch 0
+diff --git a/u-boot-el1-hyp/tools/patman/patman.py b/u-boot-el1-hyp/tools/patman/patman.py
+index 27a2febf7..8c5ec97b3 100755
+--- a/u-boot-el1-hyp/tools/patman/patman.py
++++ b/u-boot-el1-hyp/tools/patman/patman.py
+@@ -1,4 +1,4 @@
+-#!/usr/bin/env python2
++#!/usr/bin/env python3
+ # SPDX-License-Identifier: GPL-2.0+
+ #
+ # Copyright (c) 2011 The Chromium OS Authors.
+@@ -14,17 +14,17 @@ import unittest
+ 
+ # Our modules
+ try:
+-    from patman import checkpatch, command, gitutil, patchstream, \
++    from .patman import checkpatch, command, gitutil, patchstream, \
+         project, settings, terminal, test
+ except ImportError:
+-    import checkpatch
+-    import command
+-    import gitutil
+-    import patchstream
+-    import project
+-    import settings
+-    import terminal
+-    import test
++    from . import checkpatch
++    from . import command
++    from . import gitutil
++    from . import patchstream
++    from . import project
++    from . import settings
++    from . import terminal
++    from . import test
+ 
+ 
+ parser = OptionParser()
+@@ -85,7 +85,7 @@ if __name__ != "__main__":
+ # Run our meagre tests
+ elif options.test:
+     import doctest
+-    import func_test
++    from . import func_test
+ 
+     sys.argv = [sys.argv[0]]
+     result = unittest.TestResult()
+@@ -172,12 +172,12 @@ else:
+                 in_reply_to=options.in_reply_to, thread=options.thread,
+                 smtp_server=options.smtp_server)
+     else:
+-        print(col.Color(col.RED, "Not sending emails due to errors/warnings"))
++        print((col.Color(col.RED, "Not sending emails due to errors/warnings")))
+ 
+     # For a dry run, just show our actions as a sanity check
+     if options.dry_run:
+         series.ShowActions(args, cmd, options.process_tags)
+         if not its_a_go:
+-            print(col.Color(col.RED, "Email would not be sent"))
++            print((col.Color(col.RED, "Email would not be sent")))
+ 
+     os.remove(cc_file)
+diff --git a/u-boot-el1-hyp/tools/patman/project.py b/u-boot-el1-hyp/tools/patman/project.py
+index 1d9cfc062..ba3db4421 100644
+--- a/u-boot-el1-hyp/tools/patman/project.py
++++ b/u-boot-el1-hyp/tools/patman/project.py
+@@ -4,7 +4,7 @@
+ 
+ import os.path
+ 
+-import gitutil
++from . import gitutil
+ 
+ def DetectProject():
+     """Autodetect the name of the current project.
+diff --git a/u-boot-el1-hyp/tools/patman/series.py b/u-boot-el1-hyp/tools/patman/series.py
+index 2735afaf8..1e70138a7 100644
+--- a/u-boot-el1-hyp/tools/patman/series.py
++++ b/u-boot-el1-hyp/tools/patman/series.py
+@@ -2,15 +2,15 @@
+ # Copyright (c) 2011 The Chromium OS Authors.
+ #
+ 
+-from __future__ import print_function
++
+ 
+ import itertools
+ import os
+ 
+-import get_maintainer
+-import gitutil
+-import settings
+-import terminal
++from . import get_maintainer
++from . import gitutil
++from . import settings
++from . import terminal
+ 
+ # Series-xxx tags that we understand
+ valid_series = ['to', 'cc', 'version', 'changes', 'prefix', 'notes', 'name',
+@@ -120,7 +120,7 @@ class Series(dict):
+                             % tag)
+                 if email:
+                     print('      Cc: ', email)
+-        print
++        print()
+         for item in to_set:
+             print('To:\t ', item)
+         for item in cc_set - to_set:
+@@ -130,7 +130,7 @@ class Series(dict):
+         if self.cover:
+             print('Cover: %d lines' % len(self.cover))
+             cover_cc = gitutil.BuildEmailList(self.get('cover_cc', ''))
+-            all_ccs = itertools.chain(cover_cc, *self._generated_cc.values())
++            all_ccs = itertools.chain(cover_cc, *list(self._generated_cc.values()))
+             for email in set(all_ccs) - to_set - cc_set:
+                     print('      Cc: ', email)
+         if cmd:
+diff --git a/u-boot-el1-hyp/tools/patman/settings.py b/u-boot-el1-hyp/tools/patman/settings.py
+index ea2bc74f7..cba22d08d 100644
+--- a/u-boot-el1-hyp/tools/patman/settings.py
++++ b/u-boot-el1-hyp/tools/patman/settings.py
+@@ -2,18 +2,18 @@
+ # Copyright (c) 2011 The Chromium OS Authors.
+ #
+ 
+-from __future__ import print_function
++
+ 
+ try:
+     import configparser as ConfigParser
+ except:
+-    import ConfigParser
++    import configparser
+ 
+ import os
+ import re
+ 
+-import command
+-import gitutil
++from . import command
++from . import gitutil
+ 
+ """Default settings per-project.
+ 
+@@ -27,7 +27,7 @@ _default_settings = {
+     }
+ }
+ 
+-class _ProjectConfigParser(ConfigParser.SafeConfigParser):
++class _ProjectConfigParser(configparser.SafeConfigParser):
+     """ConfigParser that handles projects.
+ 
+     There are two main goals of this class:
+@@ -88,7 +88,7 @@ class _ProjectConfigParser(ConfigParser.SafeConfigParser):
+             project_name: The name of the project.
+         """
+         self._project_name = project_name
+-        ConfigParser.SafeConfigParser.__init__(self)
++        configparser.SafeConfigParser.__init__(self)
+ 
+         # Update the project settings in the config based on
+         # the _default_settings global.
+@@ -96,7 +96,7 @@ class _ProjectConfigParser(ConfigParser.SafeConfigParser):
+         if not self.has_section(project_settings):
+             self.add_section(project_settings)
+         project_defaults = _default_settings.get(project_name, {})
+-        for setting_name, setting_value in project_defaults.items():
++        for setting_name, setting_value in list(project_defaults.items()):
+             self.set(project_settings, setting_name, setting_value)
+ 
+     def _to_unicode(self, val):
+@@ -108,7 +108,7 @@ class _ProjectConfigParser(ConfigParser.SafeConfigParser):
+         Returns:
+             unicode version of val
+         """
+-        return val if isinstance(val, unicode) else val.decode('utf-8')
++        return val if isinstance(val, str) else val.decode('utf-8')
+ 
+     def get(self, section, option, *args, **kwargs):
+         """Extend SafeConfigParser to try project_section before section.
+@@ -119,12 +119,12 @@ class _ProjectConfigParser(ConfigParser.SafeConfigParser):
+             See SafeConfigParser.
+         """
+         try:
+-            val = ConfigParser.SafeConfigParser.get(
++            val = configparser.SafeConfigParser.get(
+                 self, "%s_%s" % (self._project_name, section), option,
+                 *args, **kwargs
+             )
+-        except (ConfigParser.NoSectionError, ConfigParser.NoOptionError):
+-            val = ConfigParser.SafeConfigParser.get(
++        except (configparser.NoSectionError, configparser.NoOptionError):
++            val = configparser.SafeConfigParser.get(
+                 self, section, option, *args, **kwargs
+             )
+         return self._to_unicode(val)
+@@ -143,19 +143,19 @@ class _ProjectConfigParser(ConfigParser.SafeConfigParser):
+ 
+         # Get items from the project section
+         try:
+-            project_items = ConfigParser.SafeConfigParser.items(
++            project_items = configparser.SafeConfigParser.items(
+                 self, "%s_%s" % (self._project_name, section), *args, **kwargs
+             )
+             has_project_section = True
+-        except ConfigParser.NoSectionError:
++        except configparser.NoSectionError:
+             pass
+ 
+         # Get top-level items
+         try:
+-            top_items = ConfigParser.SafeConfigParser.items(
++            top_items = configparser.SafeConfigParser.items(
+                 self, section, *args, **kwargs
+             )
+-        except ConfigParser.NoSectionError:
++        except configparser.NoSectionError:
+             # If neither section exists raise the error on...
+             if not has_project_section:
+                 raise
+@@ -163,7 +163,7 @@ class _ProjectConfigParser(ConfigParser.SafeConfigParser):
+         item_dict = dict(top_items)
+         item_dict.update(project_items)
+         return {(self._to_unicode(item), self._to_unicode(val))
+-                for item, val in item_dict.iteritems()}
++                for item, val in item_dict.items()}
+ 
+ def ReadGitAliases(fname):
+     """Read a git alias file. This is in the form used by git:
+@@ -211,12 +211,12 @@ def CreatePatmanConfigFile(config_fname):
+     """
+     name = gitutil.GetDefaultUserName()
+     if name == None:
+-        name = raw_input("Enter name: ")
++        name = input("Enter name: ")
+ 
+     email = gitutil.GetDefaultUserEmail()
+ 
+     if email == None:
+-        email = raw_input("Enter email: ")
++        email = input("Enter email: ")
+ 
+     try:
+         f = open(config_fname, 'w')
+@@ -311,7 +311,7 @@ def GetItems(config, section):
+     """
+     try:
+         return config.items(section)
+-    except ConfigParser.NoSectionError as e:
++    except configparser.NoSectionError as e:
+         return []
+     except:
+         raise
+diff --git a/u-boot-el1-hyp/tools/patman/terminal.py b/u-boot-el1-hyp/tools/patman/terminal.py
+index 4ceab189b..ec3cbbb34 100644
+--- a/u-boot-el1-hyp/tools/patman/terminal.py
++++ b/u-boot-el1-hyp/tools/patman/terminal.py
+@@ -7,13 +7,13 @@
+ This module handles terminal interaction including ANSI color codes.
+ """
+ 
+-from __future__ import print_function
++
+ 
+ import os
+ import sys
+ 
+ # Selection of when we want our output to be colored
+-COLOR_IF_TERMINAL, COLOR_ALWAYS, COLOR_NEVER = range(3)
++COLOR_IF_TERMINAL, COLOR_ALWAYS, COLOR_NEVER = list(range(3))
+ 
+ # Initially, we are set up to print to the terminal
+ print_test_mode = False
+@@ -91,7 +91,7 @@ def EchoPrintTestLines():
+ 
+ class Color(object):
+     """Conditionally wraps text in ANSI color escape sequences."""
+-    BLACK, RED, GREEN, YELLOW, BLUE, MAGENTA, CYAN, WHITE = range(8)
++    BLACK, RED, GREEN, YELLOW, BLUE, MAGENTA, CYAN, WHITE = list(range(8))
+     BOLD = -1
+     BRIGHT_START = '\033[1;%dm'
+     NORMAL_START = '\033[22;%dm'
+diff --git a/u-boot-el1-hyp/tools/patman/test.py b/u-boot-el1-hyp/tools/patman/test.py
+index e1b94bd1a..03f55d62b 100644
+--- a/u-boot-el1-hyp/tools/patman/test.py
++++ b/u-boot-el1-hyp/tools/patman/test.py
+@@ -8,10 +8,10 @@ import os
+ import tempfile
+ import unittest
+ 
+-import checkpatch
+-import gitutil
+-import patchstream
+-import series
++from . import checkpatch
++from . import gitutil
++from . import patchstream
++from . import series
+ 
+ 
+ class TestPatch(unittest.TestCase):
+diff --git a/u-boot-el1-hyp/tools/patman/test_util.py b/u-boot-el1-hyp/tools/patman/test_util.py
+index 687d40704..85dd2be59 100644
+--- a/u-boot-el1-hyp/tools/patman/test_util.py
++++ b/u-boot-el1-hyp/tools/patman/test_util.py
+@@ -8,10 +8,10 @@ import glob
+ import os
+ import sys
+ 
+-import command
++from . import command
+ 
+ try:
+-  from StringIO import StringIO
++  from io import StringIO
+ except ImportError:
+   from io import StringIO
+ 
+@@ -54,18 +54,18 @@ def RunTestCoverage(prog, filter_fname, exclude_list, build_dir, required=None):
+         missing_list = required
+         missing_list.difference_update(test_set)
+         if missing_list:
+-            print 'Missing tests for %s' % (', '.join(missing_list))
+-            print stdout
++            print('Missing tests for %s' % (', '.join(missing_list)))
++            print(stdout)
+             ok = False
+ 
+     coverage = lines[-1].split(' ')[-1]
+     ok = True
+-    print coverage
++    print(coverage)
+     if coverage != '100%':
+-        print stdout
++        print(stdout)
+         print ("Type 'python-coverage html' to get a report in "
+                'htmlcov/index.html')
+-        print 'Coverage error: %s, but should be 100%%' % coverage
++        print('Coverage error: %s, but should be 100%%' % coverage)
+         ok = False
+     if not ok:
+         raise ValueError('Test coverage failure')
+diff --git a/u-boot-el1-hyp/tools/patman/tools.py b/u-boot-el1-hyp/tools/patman/tools.py
+index bf099798e..27f8ec883 100644
+--- a/u-boot-el1-hyp/tools/patman/tools.py
++++ b/u-boot-el1-hyp/tools/patman/tools.py
+@@ -3,13 +3,13 @@
+ # Copyright (c) 2016 Google, Inc
+ #
+ 
+-import command
++from . import command
+ import glob
+ import os
+ import shutil
+ import tempfile
+ 
+-import tout
++from . import tout
+ 
+ # Output directly (generally this is temporary)
+ outdir = None
+diff --git a/u-boot-el1-hyp/tools/patman/tout.py b/u-boot-el1-hyp/tools/patman/tout.py
+index 4957c7ae1..b1bd74554 100644
+--- a/u-boot-el1-hyp/tools/patman/tout.py
++++ b/u-boot-el1-hyp/tools/patman/tout.py
+@@ -6,7 +6,7 @@
+ 
+ import sys
+ 
+-import terminal
++from . import terminal
+ 
+ # Output verbosity levels that we support
+ ERROR = 0
+diff --git a/u-boot-el1-hyp/tools/rkmux.py b/u-boot-el1-hyp/tools/rkmux.py
+index 11c192a07..1226ee201 100755
+--- a/u-boot-el1-hyp/tools/rkmux.py
++++ b/u-boot-el1-hyp/tools/rkmux.py
+@@ -1,4 +1,4 @@
+-#!/usr/bin/env python2
++#!/usr/bin/env python3
+ 
+ # Script to create enums from datasheet register tables
+ #
+@@ -43,8 +43,8 @@ class RegField:
+         self.desc.append(desc)
+ 
+     def Show(self):
+-        print self
+-        print
++        print(self)
++        print()
+         self.__init__()
+ 
+     def __str__(self):
+@@ -65,11 +65,11 @@ class Printer:
+             self.output_footer()
+ 
+     def output_header(self):
+-        print '/* %s */' % self.name
+-        print 'enum {'
++        print('/* %s */' % self.name)
++        print('enum {')
+ 
+     def output_footer(self):
+-        print '};';
++        print('};');
+ 
+     def output_regfield(self, regfield):
+         lines = regfield.desc
+@@ -97,7 +97,7 @@ class Printer:
+             self.first = False
+             self.output_header()
+         else:
+-            print
++            print()
+         out_enum(field, 'shift', bit_low)
+         out_enum(field, 'mask', mask)
+         next_val = -1
+@@ -175,7 +175,7 @@ def out_enum(field, suffix, value, skip_val=False):
+             val_str = '%d' % value
+ 
+         str += '%s= %s' % ('\t' * tabs, val_str)
+-    print '\t%s,' % str
++    print('\t%s,' % str)
+ 
+ # Process a CSV file, e.g. from tabula
+ def process_csv(name, fd):

@@ -1,0 +1,14 @@
+# Build artifacts, editor droppings
+*.o
+*.ko
+*.elf
+*.bin
+*.cmd
+*.mod
+*.mod.c
+modules.order
+Module.symvers
+.tmp_versions/
+.DS_Store
+Thumbs.db
+*~

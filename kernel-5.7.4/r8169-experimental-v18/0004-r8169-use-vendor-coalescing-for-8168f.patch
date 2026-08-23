@@ -1,0 +1,30 @@
+diff --git a/drivers/net/ethernet/realtek/r8169_main.c b/drivers/net/ethernet/realtek/r8169_main.c
+--- a/drivers/net/ethernet/realtek/r8169_main.c
++++ b/drivers/net/ethernet/realtek/r8169_main.c
+@@ -3851,6 +3851,8 @@ static void rtl_hw_start_8125(struct rtl8169_private *tp)
+ 
+ static void rtl_hw_start_8168(struct rtl8169_private *tp)
+ {
++	u16 intr_mitigate = 0;
++
+ 	if (rtl_is_8168evl_up(tp))
+ 		RTL_W8(tp, MaxTxPacketSize, EarlySize);
+ 	else
+@@ -3858,8 +3860,15 @@ static void rtl_hw_start_8168(struct rtl8169_private *tp)
+ 
+ 	rtl_hw_config(tp);
+ 
+-	/* disable interrupt coalescing */
+-	RTL_W16(tp, IntrMitigate, 0x0000);
++	tp->cp_cmd &= ~INTT_MASK;
++	if (tp->mac_version == RTL_GIGA_MAC_VER_35 ||
++	    tp->mac_version == RTL_GIGA_MAC_VER_36) {
++		tp->cp_cmd |= 1;
++		intr_mitigate = 0x5151;
++	}
++
++	RTL_W16(tp, CPlusCmd, tp->cp_cmd);
++	RTL_W16(tp, IntrMitigate, intr_mitigate);
+ }
+ 
+ static void rtl_hw_start_8169(struct rtl8169_private *tp)

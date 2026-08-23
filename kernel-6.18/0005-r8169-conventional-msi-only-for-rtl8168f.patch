@@ -1,0 +1,33 @@
+From 5285f2a3bc74d60ee8a97edebdefd27fca57652c Mon Sep 17 00:00:00 2001
+From: Orange Pi 3 port <port@localhost>
+Date: Sun, 23 Aug 2026 12:53:24 +0900
+Subject: [PATCH 5/7] r8169: allocate conventional MSI only for RTL8168F (MAC
+ 35/36)
+
+---
+ drivers/net/ethernet/realtek/r8169_main.c | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/drivers/net/ethernet/realtek/r8169_main.c b/drivers/net/ethernet/realtek/r8169_main.c
+index 245072ef0529..03aef6974457 100644
+--- a/drivers/net/ethernet/realtek/r8169_main.c
++++ b/drivers/net/ethernet/realtek/r8169_main.c
+@@ -5143,7 +5143,14 @@ static int rtl_alloc_irq(struct rtl8169_private *tp)
+ 		flags = PCI_IRQ_INTX;
+ 		break;
+ 	default:
+-		flags = PCI_IRQ_ALL_TYPES;
++		if (tp->mac_version == RTL_GIGA_MAC_VER_35 ||
++		    tp->mac_version == RTL_GIGA_MAC_VER_36) {
++			flags = PCI_IRQ_MSI;
++			netdev_info(tp->dev,
++				    "Orange Pi 3 PCIe: RTL8168F conventional-MSI-only allocation\n");
++		} else {
++			flags = PCI_IRQ_ALL_TYPES;
++		}
+ 		break;
+ 	}
+ 
+-- 
+2.43.0
+

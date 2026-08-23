@@ -1,0 +1,79 @@
+From: Orange Pi 3 PCIe reference build
+Subject: [PATCH] arm64: add opt-in Orange Pi 3 kernel-entry LED marker
+
+The no-UART reference image needs to distinguish a U-Boot handoff from the
+first instructions of Linux. Add a deliberately board-specific debug option
+which turns the Orange Pi 3 red PL4 LED off and green PL7 LED on immediately
+after preserving the boot arguments and before el2_setup.
+
+At that point the MMU is disabled, so access the H6 R_PIO block through its
+physical address. Update only the two LED bits and pin-function nibbles, leave
+all other R_PIO state intact, and clobber only caller-saved registers.
+
+The option defaults to N and additionally depends on DEBUG_KERNEL. It must be
+enabled only in the dedicated Orange Pi 3 diagnostic configuration; it is not
+portable arm64 platform code.
+---
+ arch/arm64/Kconfig.debug | 12 ++++++++++++
+ arch/arm64/kernel/head.S | 22 ++++++++++++++++++++++
+ 2 files changed, 34 insertions(+)
+
+diff --git a/arch/arm64/Kconfig.debug b/arch/arm64/Kconfig.debug
+index a1efa24..f614b79 100644
+--- a/arch/arm64/Kconfig.debug
++++ b/arch/arm64/Kconfig.debug
+@@ -8,6 +8,18 @@ config PID_IN_CONTEXTIDR
+ 	  instructions during context switch. Say Y here only if you are
+ 	  planning to use hardware trace tools with this kernel.
+ 
++config ORANGEPI3_H6_EARLY_LED_DIAGNOSTIC
++	bool "Orange Pi 3 H6 early kernel-entry LED diagnostic"
++	depends on DEBUG_KERNEL
++	help
++	  Light the Orange Pi 3 green status LED and extinguish its red power
++	  LED at the first arm64 kernel entry, before EL2 setup and with the
++	  MMU disabled. This writes directly to the H6 R_PIO registers at
++	  physical address 0x07022000 and is not portable to other boards.
++
++	  This is a no-UART boot diagnostic only. Enable it only in the
++	  dedicated Orange Pi 3 diagnostic configuration. If unsure, say N.
++
+ config ARM64_RANDOMIZE_TEXT_OFFSET
+ 	bool "Randomize TEXT_OFFSET at build time"
+ 	help
+diff --git a/arch/arm64/kernel/head.S b/arch/arm64/kernel/head.S
+index 57a9103..0b12555 100644
+--- a/arch/arm64/kernel/head.S
++++ b/arch/arm64/kernel/head.S
+@@ -107,6 +107,28 @@ pe_header:
+ 	 */
+ SYM_CODE_START(stext)
+ 	bl	preserve_boot_args
++#ifdef CONFIG_ORANGEPI3_H6_EARLY_LED_DIAGNOSTIC
++	/*
++	 * Orange Pi 3 no-UART milestone: red PL4 off, green PL7 on.
++	 * R_PIO is addressed physically here because the MMU is still off.
++	 * Program the data latch before forcing both pins to output mode, and
++	 * preserve every callee-saved early-boot register (especially x21).
++	 */
++	movz	x9, #0x2000
++	movk	x9, #0x0702, lsl #16		// H6 R_PIO: 0x07022000
++
++	ldr	w10, [x9, #0x10]		// PL_DATA
++	bic	w10, w10, #0x10		// PL4 = 0 (red off)
++	orr	w10, w10, #0x80		// PL7 = 1 (green on)
++	str	w10, [x9, #0x10]
++
++	ldr	w10, [x9]			// PL_CFG0
++	mov	w11, #1			// function 1 = GPIO output
++	bfi	w10, w11, #16, #4		// PL4 function
++	bfi	w10, w11, #28, #4		// PL7 function
++	str	w10, [x9]
++	dsb	sy
++#endif
+ 	bl	el2_setup			// Drop to EL1, w0=cpu_boot_mode
+ 	adrp	x23, __PHYS_OFFSET
+ 	and	x23, x23, MIN_KIMG_ALIGN - 1	// KASLR offset, defaults to 0
+-- 
+2.50.1
+

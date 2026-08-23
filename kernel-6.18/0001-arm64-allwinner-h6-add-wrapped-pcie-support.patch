@@ -1,0 +1,727 @@
+From c0906d7514a78764e383215dab2dac1cbdb0c56c Mon Sep 17 00:00:00 2001
+From: Orange Pi 3 port <port@localhost>
+Date: Sun, 23 Aug 2026 12:53:23 +0900
+Subject: [PATCH 1/7] arm64: allwinner H6 wrapped PCIe support with native
+ identity DMA
+
+---
+ .../dts/allwinner/sun50i-h6-orangepi-3.dts    |   8 +
+ arch/arm64/boot/dts/allwinner/sun50i-h6.dtsi  |  31 +
+ drivers/pci/controller/dwc/Kconfig            |  10 +
+ drivers/pci/controller/dwc/Makefile           |   1 +
+ .../pci/controller/dwc/pcie-designware-host.c |  23 +-
+ .../pci/controller/dwc/pcie-sunxi-wrapped.c   | 561 ++++++++++++++++++
+ 6 files changed, 633 insertions(+), 1 deletion(-)
+ create mode 100644 drivers/pci/controller/dwc/pcie-sunxi-wrapped.c
+
+diff --git a/arch/arm64/boot/dts/allwinner/sun50i-h6-orangepi-3.dts b/arch/arm64/boot/dts/allwinner/sun50i-h6-orangepi-3.dts
+index dc7381c944c9..aa09c7a75048 100644
+--- a/arch/arm64/boot/dts/allwinner/sun50i-h6-orangepi-3.dts
++++ b/arch/arm64/boot/dts/allwinner/sun50i-h6-orangepi-3.dts
+@@ -170,6 +170,14 @@ &ohci3 {
+ 	status = "okay";
+ };
+ 
++&pcie {
++	vcc-supply = <&reg_bldo2>;
++	vdd-supply = <&reg_dcdcd>;
++	slot-supply = <&reg_vcc33_wifi>;
++	perst-gpios = <&pio 6 14 GPIO_ACTIVE_LOW>; /* PG14 */
++	status = "okay";
++};
++
+ &pio {
+ 	vcc-pc-supply = <&reg_bldo2>;
+ 	vcc-pd-supply = <&reg_cldo1>;
+diff --git a/arch/arm64/boot/dts/allwinner/sun50i-h6.dtsi b/arch/arm64/boot/dts/allwinner/sun50i-h6.dtsi
+index 73e8604315c5..549c9908c0aa 100644
+--- a/arch/arm64/boot/dts/allwinner/sun50i-h6.dtsi
++++ b/arch/arm64/boot/dts/allwinner/sun50i-h6.dtsi
+@@ -12,6 +12,8 @@
+ #include <dt-bindings/reset/sun8i-de2.h>
+ #include <dt-bindings/thermal/thermal.h>
+ 
++/memreserve/ 0x40010000 0x00070000;
++
+ / {
+ 	interrupt-parent = <&gic>;
+ 	#address-cells = <1>;
+@@ -812,6 +814,35 @@ ohci3: usb@5311400 {
+ 			status = "disabled";
+ 		};
+ 
++		pcie: pcie@5400000 {
++			compatible = "pine64,allwinner-h6-pcie-wrapped";
++			reg = <0x05400000 0x4000>,
++			      <0x05410000 0x10000>;
++			reg-names = "dbi", "config";
++			device_type = "pci";
++			#address-cells = <3>;
++			#size-cells = <2>;
++			bus-range = <0x00 0xff>;
++			ranges = <0x81000000 0 0          0x05e00000 0 0x00010000>,
++				 <0x82000000 0 0x05500000 0x05500000 0 0x00800000>;
++			num-lanes = <1>;
++			max-link-speed = <2>;
++			interrupts = <GIC_SPI 127 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 126 IRQ_TYPE_LEVEL_HIGH>;
++			interrupt-names = "msi", "linkup";
++			clocks = <&ccu CLK_PCIE_REF_OUT>,
++				 <&ccu CLK_PCIE_MAXI>,
++				 <&ccu CLK_PCIE_AUX>,
++				 <&ccu CLK_BUS_PCIE>;
++			clock-names = "ref", "axi", "aux", "bus";
++			resets = <&ccu RST_PCIE_POWERUP>, <&ccu RST_BUS_PCIE>;
++			reset-names = "power", "bus";
++			#interrupt-cells = <1>;
++			interrupt-map-mask = <0 0 0 0>;
++			interrupt-map = <0 0 0 1 &gic GIC_SPI 127 IRQ_TYPE_LEVEL_HIGH>;
++			status = "disabled";
++		};
++
+ 		hdmi: hdmi@6000000 {
+ 			compatible = "allwinner,sun50i-h6-dw-hdmi";
+ 			reg = <0x06000000 0x10000>;
+diff --git a/drivers/pci/controller/dwc/Kconfig b/drivers/pci/controller/dwc/Kconfig
+index 349d4657393c..5ac7e7fb1a5a 100644
+--- a/drivers/pci/controller/dwc/Kconfig
++++ b/drivers/pci/controller/dwc/Kconfig
+@@ -386,6 +386,16 @@ config PCIE_FU740
+ 	  Say Y here if you want PCIe controller support for the SiFive
+ 	  FU740.
+ 
++config PCIE_SUNXI_WRAPPED
++	bool "Wrapped Allwinner H6 PCIe controller"
++	depends on ARCH_SUNXI || COMPILE_TEST
++	depends on PCI_MSI
++	select PCIE_DW_HOST
++	help
++	  Enable the DesignWare PCIe host controller found in the Allwinner H6.
++	  The controller's broken configuration-space window must be wrapped by
++	  the aw-el2-barebone hypervisor before this driver can be used.
++
+ config PCIE_UNIPHIER
+ 	bool "Socionext UniPhier PCIe controller (host mode)"
+ 	depends on ARCH_UNIPHIER || COMPILE_TEST
+diff --git a/drivers/pci/controller/dwc/Makefile b/drivers/pci/controller/dwc/Makefile
+index 7ae28f3b0fb3..d65621d0fbda 100644
+--- a/drivers/pci/controller/dwc/Makefile
++++ b/drivers/pci/controller/dwc/Makefile
+@@ -27,6 +27,7 @@ obj-$(CONFIG_PCIE_KIRIN) += pcie-kirin.o
+ obj-$(CONFIG_PCIE_HISI_STB) += pcie-histb.o
+ obj-$(CONFIG_PCI_MESON) += pci-meson.o
+ obj-$(CONFIG_PCIE_TEGRA194) += pcie-tegra194.o
++obj-$(CONFIG_PCIE_SUNXI_WRAPPED) += pcie-sunxi-wrapped.o
+ obj-$(CONFIG_PCIE_UNIPHIER) += pcie-uniphier.o
+ obj-$(CONFIG_PCIE_UNIPHIER_EP) += pcie-uniphier-ep.o
+ obj-$(CONFIG_PCIE_VISCONTI_HOST) += pcie-visconti.o
+diff --git a/drivers/pci/controller/dwc/pcie-designware-host.c b/drivers/pci/controller/dwc/pcie-designware-host.c
+index 48e4a887bb1b..1f6172ed30f4 100644
+--- a/drivers/pci/controller/dwc/pcie-designware-host.c
++++ b/drivers/pci/controller/dwc/pcie-designware-host.c
+@@ -91,13 +91,34 @@ static void dw_chained_msi_isr(struct irq_desc *desc)
+ 	chained_irq_exit(chip, desc);
+ }
+ 
++/*
++ * The endpoint emits the MSI write in PCI bus address space, then the inbound
++ * iATU translates it before the DesignWare MSI receiver compares the address.
++ * The receiver therefore keeps pp->msi_data in CPU physical form, while only
++ * the message programmed into the endpoint needs the PCI bus view.
++ */
++static u64 dw_pcie_msi_msg_target(struct dw_pcie_rp *pp)
++{
++	struct resource_entry *entry;
++	u64 target = (u64)pp->msi_data;
++
++	resource_list_for_each_entry(entry, &pp->bridge->dma_ranges) {
++		if (resource_type(entry->res) != IORESOURCE_MEM)
++			continue;
++		if (target >= entry->res->start && target <= entry->res->end)
++			return target - entry->offset;
++	}
++
++	return target;
++}
++
+ static void dw_pci_setup_msi_msg(struct irq_data *d, struct msi_msg *msg)
+ {
+ 	struct dw_pcie_rp *pp = irq_data_get_irq_chip_data(d);
+ 	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
+ 	u64 msi_target;
+ 
+-	msi_target = (u64)pp->msi_data;
++	msi_target = dw_pcie_msi_msg_target(pp);
+ 
+ 	msg->address_lo = lower_32_bits(msi_target);
+ 	msg->address_hi = upper_32_bits(msi_target);
+diff --git a/drivers/pci/controller/dwc/pcie-sunxi-wrapped.c b/drivers/pci/controller/dwc/pcie-sunxi-wrapped.c
+new file mode 100644
+index 000000000000..6425a6391c70
+--- /dev/null
++++ b/drivers/pci/controller/dwc/pcie-sunxi-wrapped.c
+@@ -0,0 +1,561 @@
++// SPDX-License-Identifier: GPL-2.0
++/*
++ * PCIe RC driver for Allwinner DW PCIe controllers
++ *
++ * Copyright (C) 2018 Icenowy Zheng <icenowy@aosc.io>
++ *
++ * Copyright (C) 2016 Allwinner Co., Ltd.
++ */
++#include <linux/clk.h>
++#include <linux/delay.h>
++#include <linux/interrupt.h>
++#include <linux/kernel.h>
++#include <linux/module.h>
++#include <linux/of.h>
++#include <linux/pci.h>
++#include <linux/platform_device.h>
++#include <linux/regulator/consumer.h>
++#include <linux/reset.h>
++
++#include "pcie-designware.h"
++
++#define PCIE_RC_LCR				0x7c
++#define PCIE_LTSSM_ENABLE			0x1000
++#define PCIE_INT_PENDING			0x1018
++#define PCIE_LINK_STATUS			0x143C
++#define PCIE_PHY_CFG				0x1800
++#define PCIE_RC_LCR_MAX_LINK_SPEEDS_GEN2	0x2
++#define PCIE_RC_LCR_MAX_LINK_SPEEDS_MASK	0xf
++#define PAD_CLK					1
++#define RDLH_LINK_UP				BIT(1)
++#define SMLH_LINK_UP				BIT(0)
++#define PCIE_LINK_TRAINING			BIT(0)
++
++#define PERST_DELAY_US				1000
++
++#define to_sunxi_pcie(x)			dev_get_drvdata((x)->dev)
++
++struct sunxi_pcie {
++	struct dw_pcie		*pci;
++	int			link_irq;
++	int			speed_gen;
++	int			io_voltage;
++	struct clk		*pcie_ref;
++	struct clk		*pcie_axi;
++	struct clk		*pcie_aux;
++	struct clk		*pcie_bus;
++	struct reset_control	*pcie_power_rst;
++	struct reset_control	*pcie_bus_rst;
++	struct regulator	*reg_vcc;
++	struct regulator	*reg_vdd;
++	struct regulator	*reg_slot;
++	struct gpio_desc	*perst_gpio;
++};
++
++static void sunxi_pcie_perst_gpio_assert(struct sunxi_pcie *pcie)
++{
++	gpiod_set_value_cansleep(pcie->perst_gpio, 1);
++	usleep_range(PERST_DELAY_US, PERST_DELAY_US + 500);
++}
++
++static void sunxi_pcie_perst_gpio_deassert(struct sunxi_pcie *pcie)
++{
++	gpiod_set_value_cansleep(pcie->perst_gpio, 0);
++	usleep_range(PERST_DELAY_US, PERST_DELAY_US + 500);
++}
++
++static void sunxi_pcie_clk_select(struct dw_pcie *pci, int status)
++{
++	u32 val;
++
++	val = dw_pcie_readl_dbi(pci, PCIE_PHY_CFG);
++	val &= ~BIT(31);
++	val |= status << 31;
++	dw_pcie_writel_dbi(pci, PCIE_PHY_CFG, val);
++}
++
++static void sunxi_pcie_ltssm_enable(struct dw_pcie *pci)
++{
++	u32 val;
++
++	val = dw_pcie_readl_dbi(pci, PCIE_LTSSM_ENABLE);
++	val |= PCIE_LINK_TRAINING;
++	dw_pcie_writel_dbi(pci, PCIE_LTSSM_ENABLE, val);
++}
++
++static void sunxi_pcie_irqpending(struct dw_pcie *pci)
++{
++	u32 val;
++
++	val = dw_pcie_readl_dbi(pci, PCIE_INT_PENDING);
++	val &= ~GENMASK(17, 16);
++	dw_pcie_writel_dbi(pci, PCIE_INT_PENDING, val);
++}
++
++static void sunxi_pcie_phy_cfg(struct dw_pcie *pci, int enable)
++{
++	u32 val;
++
++	val = dw_pcie_readl_dbi(pci, PCIE_PHY_CFG);
++	if (enable)
++		val |= BIT(0);
++	else
++		val &= ~BIT(0);
++	dw_pcie_writel_dbi(pci, PCIE_PHY_CFG, val);
++}
++
++static void sunxi_pcie_irqmask(struct dw_pcie *pci)
++{
++	u32 val;
++
++	val = dw_pcie_readl_dbi(pci, PCIE_INT_PENDING);
++	val |= GENMASK(17, 16);
++	dw_pcie_writel_dbi(pci, PCIE_INT_PENDING, val);
++}
++
++static void sunxi_pcie_ltssm_disable(struct dw_pcie *pci)
++{
++	u32 val;
++
++	val = dw_pcie_readl_dbi(pci, PCIE_LTSSM_ENABLE);
++	val &= ~PCIE_LINK_TRAINING;
++	dw_pcie_writel_dbi(pci, PCIE_LTSSM_ENABLE, val);
++}
++
++static int sunxi_pcie_wait_for_speed_change(struct dw_pcie *pci)
++{
++	u32 tmp;
++	unsigned int retries;
++
++	for (retries = 0; retries < 200; retries++) {
++		tmp = dw_pcie_readl_dbi(pci, PCIE_LINK_WIDTH_SPEED_CONTROL);
++		/* Test if the speed change finished. */
++		if (!(tmp & PORT_LOGIC_SPEED_CHANGE))
++			return 0;
++		usleep_range(100, 1000);
++	}
++
++	dev_err(pci->dev, "Speed change timeout\n");
++	return -EINVAL;
++}
++
++static bool sunxi_pcie_link_up_status(struct dw_pcie *pci)
++{
++	u32 rc;
++
++	rc = dw_pcie_readl_dbi(pci, PCIE_LINK_STATUS);
++	return (rc & RDLH_LINK_UP) && (rc & SMLH_LINK_UP);
++}
++
++static int sunxi_pcie_speed_change(struct dw_pcie *pci, int gen)
++{
++	int val;
++	int ret;
++
++	if (gen == 2) {
++		val = dw_pcie_readl_dbi(pci, PCIE_RC_LCR);
++		val &= ~PCIE_RC_LCR_MAX_LINK_SPEEDS_MASK;
++		val |= PCIE_RC_LCR_MAX_LINK_SPEEDS_GEN2;
++		dw_pcie_writel_dbi(pci, PCIE_RC_LCR, val);
++
++		/*
++		 * Start Directed Speed Change so the best possible
++		 * speed both link partners support can be negotiated.
++		 */
++		val = dw_pcie_readl_dbi(pci, PCIE_LINK_WIDTH_SPEED_CONTROL);
++		val |= PORT_LOGIC_SPEED_CHANGE;
++		dw_pcie_writel_dbi(pci, PCIE_LINK_WIDTH_SPEED_CONTROL, val);
++		ret = sunxi_pcie_wait_for_speed_change(pci);
++
++		if (!ret)
++			dev_info(pci->dev, "PCI-e speed of Gen%d\n", gen);
++		else
++			dev_info(pci->dev, "PCI-e speed of Gen1\n");
++	} else {
++		dev_info(pci->dev, "PCI-e speed of Gen1\n");
++	}
++
++	return 0;
++}
++
++static int sunxi_pcie_reset_deassert(struct sunxi_pcie *pcie)
++{
++	int ret;
++
++	ret = reset_control_deassert(pcie->pcie_bus_rst);
++	if (ret) {
++		dev_err(pcie->pci->dev, "unable to deassert bus reset\n");
++		return ret;
++	}
++	usleep_range(1000, 2000);
++
++	if (pcie->io_voltage < 2000000)
++		sunxi_pcie_phy_cfg(pcie->pci, 1);
++	else
++		sunxi_pcie_phy_cfg(pcie->pci, 0);
++
++	usleep_range(1000, 2000);
++	ret = reset_control_deassert(pcie->pcie_power_rst);
++	if (ret) {
++		dev_err(pcie->pci->dev, "unable to deassert power reset\n");
++		goto bus_reset_assert;
++	}
++
++	return 0;
++
++bus_reset_assert:
++	reset_control_assert(pcie->pcie_bus_rst);
++	return ret;
++}
++
++static int sunxi_pcie_clk_setup(struct sunxi_pcie *pcie)
++{
++	int ret;
++
++	ret = clk_prepare_enable(pcie->pcie_ref);
++	if (ret) {
++		dev_err(pcie->pci->dev, "unable to enable pcie_ref clock\n");
++		return ret;
++	}
++
++	ret = clk_prepare_enable(pcie->pcie_axi);
++	if (ret) {
++		dev_err(pcie->pci->dev, "unable to enable pcie_axi clock\n");
++		goto disable_ref;
++	}
++
++	ret = clk_prepare_enable(pcie->pcie_aux);
++	if (ret) {
++		dev_err(pcie->pci->dev, "unable to enable pcie_aux clock\n");
++		goto disable_axi;
++	}
++
++	ret = clk_prepare_enable(pcie->pcie_bus);
++	if (ret) {
++		dev_err(pcie->pci->dev, "unable to enable pcie_bus clock\n");
++		goto disable_aux;
++	}
++
++	return 0;
++
++disable_aux:
++	clk_disable_unprepare(pcie->pcie_aux);
++disable_axi:
++	clk_disable_unprepare(pcie->pcie_axi);
++disable_ref:
++	clk_disable_unprepare(pcie->pcie_ref);
++
++	return ret;
++}
++
++static void sunxi_pcie_clk_disable(struct sunxi_pcie *pcie)
++{
++	clk_disable_unprepare(pcie->pcie_bus);
++	clk_disable_unprepare(pcie->pcie_aux);
++	clk_disable_unprepare(pcie->pcie_axi);
++	clk_disable_unprepare(pcie->pcie_ref);
++}
++
++static int sunxi_pcie_regulator_enable(struct sunxi_pcie *pcie)
++{
++	int ret;
++
++	ret = regulator_enable(pcie->reg_vcc);
++	if (ret)
++		return ret;
++
++	pcie->io_voltage = regulator_get_voltage(pcie->reg_vcc);
++	if (pcie->io_voltage < 0) {
++		ret = pcie->io_voltage;
++		goto disable_vcc;
++	}
++
++	ret = regulator_enable(pcie->reg_vdd);
++	if (ret)
++		goto disable_vcc;
++
++	ret = regulator_enable(pcie->reg_slot);
++	if (ret)
++		goto disable_vdd;
++
++	return 0;
++
++disable_vdd:
++	regulator_disable(pcie->reg_vdd);
++disable_vcc:
++	regulator_disable(pcie->reg_vcc);
++
++	return ret;
++}
++
++static void sunxi_pcie_regulator_disable(struct sunxi_pcie *pcie)
++{
++	regulator_disable(pcie->reg_slot);
++	regulator_disable(pcie->reg_vdd);
++	regulator_disable(pcie->reg_vcc);
++}
++
++static irqreturn_t sunxi_pcie_linkup_handler(int irq, void *arg)
++{
++	struct sunxi_pcie *pcie = (struct sunxi_pcie *)arg;
++
++	sunxi_pcie_irqpending(pcie->pci);
++
++	return IRQ_HANDLED;
++}
++
++static int sunxi_pcie_get_clk_rst(struct platform_device *pdev,
++				  struct sunxi_pcie *pcie)
++{
++	struct device *dev = &pdev->dev;
++
++	pcie->pcie_ref = devm_clk_get(dev, "ref");
++	if (IS_ERR(pcie->pcie_ref)) {
++		dev_err(dev, "failed to get pcie ref clk\n");
++		return PTR_ERR(pcie->pcie_ref);
++	}
++
++	pcie->pcie_axi = devm_clk_get(dev, "axi");
++	if (IS_ERR(pcie->pcie_axi)) {
++		dev_err(dev, "failed to get pcie axi clk\n");
++		return PTR_ERR(pcie->pcie_axi);
++	}
++
++	pcie->pcie_aux = devm_clk_get(dev, "aux");
++	if (IS_ERR(pcie->pcie_aux)) {
++		dev_err(dev, "failed to get pcie aux clk\n");
++		return PTR_ERR(pcie->pcie_aux);
++	}
++
++	pcie->pcie_bus = devm_clk_get(dev, "bus");
++	if (IS_ERR(pcie->pcie_bus)) {
++		dev_err(dev, "failed to get pcie bus clk\n");
++		return PTR_ERR(pcie->pcie_bus);
++	}
++
++	pcie->pcie_bus_rst = devm_reset_control_get(dev, "bus");
++	if (IS_ERR(pcie->pcie_bus_rst)) {
++		dev_err(dev, "failed to get pcie bus reset\n");
++		return PTR_ERR(pcie->pcie_bus_rst);
++	}
++
++	pcie->pcie_power_rst = devm_reset_control_get(dev, "power");
++	if (IS_ERR(pcie->pcie_power_rst)) {
++		dev_err(dev, "failed to get pcie power reset\n");
++		return PTR_ERR(pcie->pcie_power_rst);
++	}
++
++	return 0;
++}
++
++static int sunxi_pcie_get_regulator(struct platform_device *pdev,
++				    struct sunxi_pcie *pcie)
++{
++	struct device *dev = &pdev->dev;
++
++	pcie->reg_vcc = devm_regulator_get(dev, "vcc");
++	if (IS_ERR(pcie->reg_vcc)) {
++		dev_err(dev, "failed to get pcie vcc supply\n");
++		return PTR_ERR(pcie->reg_vcc);
++	}
++
++	pcie->reg_vdd = devm_regulator_get(dev, "vdd");
++	if (IS_ERR(pcie->reg_vdd)) {
++		dev_err(dev, "failed to get pcie vdd supply\n");
++		return PTR_ERR(pcie->reg_vdd);
++	}
++
++	pcie->reg_slot = devm_regulator_get(dev, "slot");
++	if (IS_ERR(pcie->reg_slot)) {
++		dev_err(dev, "failed to get pcie slot supply\n");
++		return PTR_ERR(pcie->reg_slot);
++	}
++
++	return 0;
++}
++
++static int sunxi_pcie_host_init(struct dw_pcie_rp *pp)
++{
++	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
++
++	sunxi_pcie_ltssm_disable(pci);
++	sunxi_pcie_clk_select(pci, PAD_CLK);
++
++	return 0;
++}
++
++static void sunxi_pcie_host_post_init(struct dw_pcie_rp *pp)
++{
++	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
++	struct sunxi_pcie *pcie = to_sunxi_pcie(pci);
++
++	sunxi_pcie_speed_change(pci, pcie->speed_gen);
++}
++
++static const struct dw_pcie_host_ops sunxi_pcie_host_ops = {
++	.init = sunxi_pcie_host_init,
++	.post_init = sunxi_pcie_host_post_init,
++};
++
++static int sunxi_pcie_start_link(struct dw_pcie *pci)
++{
++	sunxi_pcie_ltssm_enable(pci);
++	return 0;
++}
++
++static void sunxi_pcie_stop_link(struct dw_pcie *pci)
++{
++	sunxi_pcie_ltssm_disable(pci);
++}
++
++static const struct dw_pcie_ops sunxi_pcie_ops = {
++	.link_up = sunxi_pcie_link_up_status,
++	.start_link = sunxi_pcie_start_link,
++	.stop_link = sunxi_pcie_stop_link,
++};
++
++static int sunxi_add_pcie_port(struct sunxi_pcie *pcie,
++			       struct platform_device *pdev)
++{
++	int ret;
++	struct dw_pcie_rp *pp = &pcie->pci->pp;
++
++	pp->ops = &sunxi_pcie_host_ops;
++
++	ret = dw_pcie_host_init(pp);
++	if (ret) {
++		dev_err(&pdev->dev, "failed to initialize host\n");
++		return ret;
++	}
++
++	return 0;
++}
++
++static int sunxi_pcie_probe(struct platform_device *pdev)
++{
++	struct sunxi_pcie *sunxi_pcie;
++	struct dw_pcie *pci;
++	struct resource *dbi_res;
++	int ret;
++
++	sunxi_pcie = devm_kzalloc(&pdev->dev, sizeof(*sunxi_pcie),
++				  GFP_KERNEL);
++	if (!sunxi_pcie)
++		return -ENOMEM;
++
++	pci = devm_kzalloc(&pdev->dev, sizeof(*pci), GFP_KERNEL);
++	if (!pci)
++		return -ENOMEM;
++
++	sunxi_pcie->pci = pci;
++
++	pci->dev = &pdev->dev;
++	pci->ops = &sunxi_pcie_ops;
++
++	platform_set_drvdata(pdev, sunxi_pcie);
++
++	dbi_res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "dbi");
++	if (!dbi_res)
++		return -ENODEV;
++
++	pci->dbi_base = devm_ioremap_resource(&pdev->dev, dbi_res);
++	if (IS_ERR(pci->dbi_base))
++		return PTR_ERR(pci->dbi_base);
++	pci->dbi_phys_addr = dbi_res->start;
++
++	ret = sunxi_pcie_get_clk_rst(pdev, sunxi_pcie);
++	if (ret)
++		return ret;
++
++	ret = sunxi_pcie_get_regulator(pdev, sunxi_pcie);
++	if (ret)
++		return ret;
++
++	sunxi_pcie->perst_gpio =
++		devm_gpiod_get_optional(&pdev->dev, "perst", GPIOD_OUT_LOW);
++	if (IS_ERR(sunxi_pcie->perst_gpio))
++		return PTR_ERR(sunxi_pcie->perst_gpio);
++
++	ret = of_property_read_u32(pdev->dev.of_node, "max-link-speed",
++				   &sunxi_pcie->speed_gen);
++	if (ret) {
++		dev_info(&pdev->dev,
++			 "No speed generation info specified, fallback to Gen1\n");
++		sunxi_pcie->speed_gen = 0x1;
++	}
++
++	ret = sunxi_pcie_regulator_enable(sunxi_pcie);
++	if (ret)
++		return ret;
++
++	ret = sunxi_pcie_clk_setup(sunxi_pcie);
++	if (ret)
++		goto disable_regulators;
++
++	ret = sunxi_pcie_reset_deassert(sunxi_pcie);
++	if (ret)
++		goto disable_clocks;
++
++	sunxi_pcie_perst_gpio_deassert(sunxi_pcie);
++
++	sunxi_pcie_irqmask(pci);
++	sunxi_pcie->link_irq = platform_get_irq_byname(pdev, "linkup");
++	if (sunxi_pcie->link_irq < 0) {
++		ret = sunxi_pcie->link_irq;
++		goto assert_resets;
++	}
++
++	ret = devm_request_irq(&pdev->dev, sunxi_pcie->link_irq,
++			       sunxi_pcie_linkup_handler,
++			       IRQF_SHARED, "sunxi-pcie-linkup", sunxi_pcie);
++	if (ret) {
++		dev_err(&pdev->dev, "failed to request linkup IRQ\n");
++		goto assert_resets;
++	}
++
++	ret = sunxi_add_pcie_port(sunxi_pcie, pdev);
++	if (ret < 0)
++		goto assert_resets;
++
++	return 0;
++
++assert_resets:
++	sunxi_pcie_perst_gpio_assert(sunxi_pcie);
++	reset_control_assert(sunxi_pcie->pcie_power_rst);
++	reset_control_assert(sunxi_pcie->pcie_bus_rst);
++disable_clocks:
++	sunxi_pcie_clk_disable(sunxi_pcie);
++disable_regulators:
++	sunxi_pcie_regulator_disable(sunxi_pcie);
++
++	return ret;
++}
++
++static void sunxi_pcie_remove(struct platform_device *pdev)
++{
++	struct sunxi_pcie *pcie = platform_get_drvdata(pdev);
++
++	dw_pcie_host_deinit(&pcie->pci->pp);
++	sunxi_pcie_perst_gpio_assert(pcie);
++	reset_control_assert(pcie->pcie_power_rst);
++	reset_control_assert(pcie->pcie_bus_rst);
++	sunxi_pcie_clk_disable(pcie);
++	sunxi_pcie_regulator_disable(pcie);
++}
++
++static const struct of_device_id sunxi_pcie_of_match[] = {
++	{ .compatible = "pine64,allwinner-h6-pcie-wrapped", },
++	{},
++};
++MODULE_DEVICE_TABLE(of, sunxi_pcie_of_match);
++
++static struct platform_driver sunxi_pcie_driver = {
++	.driver = {
++		.name = "sunxi-h6-pcie-wrapped",
++		.suppress_bind_attrs = true,
++		.of_match_table = sunxi_pcie_of_match,
++	},
++	.remove = sunxi_pcie_remove,
++	.probe	= sunxi_pcie_probe,
++};
++builtin_platform_driver(sunxi_pcie_driver);
+-- 
+2.43.0
+

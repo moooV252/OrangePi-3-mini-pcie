@@ -1,0 +1,297 @@
+From: Orange Pi 3 PCIe reference build
+Subject: [PATCH] r8169: stop safely when PCIe corrupts descriptor rings
+
+The H6 wrapped-PCIe investigation has observed endpoint writes replacing
+complete RX and TX descriptors.  Linux 5.7.4's r8169 driver takes DMA
+addresses back from those hardware-owned descriptors and passes them to the
+DMA API.  A corrupted address therefore reaches the arm64 cache-maintenance
+code and causes a fatal exception.
+
+Keep driver-owned shadows of every mapped RX and TX address.  Use only the
+shadows for DMA sync and unmap operations.  Check the hardware descriptor
+against its shadow before processing a completion.  Validate the RX fragment
+flags and raw length against both the active MTU and mapped buffer before any
+length subtraction, allocation, or DMA synchronization.  On a mismatch, or
+an otherwise invalid RX completion, mask interrupts, disable the MAC engines,
+clear PCI bus mastering, and leave the interface stopped.  Refuse to reopen
+the interface until the module is reloaded or the machine is rebooted.
+
+This is a diagnostic containment patch.  It does not repair the underlying
+H6 PCIe write corruption, and it does not alter normal descriptor programming.
+---
+ drivers/net/ethernet/realtek/r8169_main.c | 118 ++++++++++++++++++++++++------
+ 1 file changed, 95 insertions(+), 23 deletions(-)
+
+diff --git a/drivers/net/ethernet/realtek/r8169_main.c b/drivers/net/ethernet/realtek/r8169_main.c
+index c51b48d..293db7f 100644
+--- a/drivers/net/ethernet/realtek/r8169_main.c
++++ b/drivers/net/ethernet/realtek/r8169_main.c
+@@ -607,11 +607,14 @@ struct rtl8169_private {
+ 	struct RxDesc *RxDescArray;	/* 256-aligned Rx descriptor ring */
+ 	dma_addr_t TxPhyAddr;
+ 	dma_addr_t RxPhyAddr;
++	dma_addr_t Tx_dma[NUM_TX_DESC];	/* Driver-owned Tx DMA addresses */
++	dma_addr_t Rx_dma[NUM_RX_DESC];	/* Driver-owned Rx DMA addresses */
+ 	struct page *Rx_databuff[NUM_RX_DESC];	/* Rx data buffers */
+ 	struct ring_info tx_skb[NUM_TX_DESC];	/* Tx data buffers */
+ 	u16 cp_cmd;
+ 	u32 irq_mask;
+ 	struct clk *clk;
++	bool dma_corrupt;
+ 
+ 	struct {
+ 		DECLARE_BITMAP(flags, RTL_FLAG_MAX);
+@@ -3914,7 +3917,8 @@ static inline void rtl8169_mark_to_asic(struct RxDesc *desc)
+ }
+ 
+ static struct page *rtl8169_alloc_rx_data(struct rtl8169_private *tp,
+-					  struct RxDesc *desc)
++					  struct RxDesc *desc,
++					  dma_addr_t *rx_dma)
+ {
+ 	struct device *d = tp_to_dev(tp);
+ 	int node = dev_to_node(d);
+@@ -3933,6 +3937,7 @@ static struct page *rtl8169_alloc_rx_data(struct rtl8169_private *tp,
+ 		return NULL;
+ 	}
+ 
++	*rx_dma = mapping;
+ 	desc->addr = cpu_to_le64(mapping);
+ 	rtl8169_mark_to_asic(desc);
+ 
+@@ -3945,10 +3950,11 @@ static void rtl8169_rx_clear(struct rtl8169_private *tp)
+ 
+ 	for (i = 0; i < NUM_RX_DESC && tp->Rx_databuff[i]; i++) {
+ 		dma_unmap_page(tp_to_dev(tp),
+-			       le64_to_cpu(tp->RxDescArray[i].addr),
++			       tp->Rx_dma[i],
+ 			       R8169_RX_BUF_SIZE, DMA_FROM_DEVICE);
+ 		__free_pages(tp->Rx_databuff[i], get_order(R8169_RX_BUF_SIZE));
+ 		tp->Rx_databuff[i] = NULL;
++		tp->Rx_dma[i] = 0;
+ 		rtl8169_make_unusable_by_asic(tp->RxDescArray + i);
+ 	}
+ }
+@@ -3965,7 +3971,8 @@ static int rtl8169_rx_fill(struct rtl8169_private *tp)
+ 	for (i = 0; i < NUM_RX_DESC; i++) {
+ 		struct page *data;
+ 
+-		data = rtl8169_alloc_rx_data(tp, tp->RxDescArray + i);
++		data = rtl8169_alloc_rx_data(tp, tp->RxDescArray + i,
++					     tp->Rx_dma + i);
+ 		if (!data) {
+ 			rtl8169_rx_clear(tp);
+ 			return -ENOMEM;
+@@ -3988,15 +3995,30 @@ static int rtl8169_init_ring(struct rtl8169_private *tp)
+ 	return rtl8169_rx_fill(tp);
+ }
+ 
++static void rtl8169_dma_corruption_stop(struct rtl8169_private *tp)
++{
++	if (tp->dma_corrupt)
++		return;
++
++	tp->dma_corrupt = true;
++	rtl_irq_disable(tp);
++	RTL_W8(tp, ChipCmd, RTL_R8(tp, ChipCmd) & ~(CmdTxEnb | CmdRxEnb));
++	rtl_pci_commit(tp);
++	pci_clear_master(tp->pci_dev);
++	netif_stop_queue(tp->dev);
++	netif_carrier_off(tp->dev);
++}
++
+ static void rtl8169_unmap_tx_skb(struct rtl8169_private *tp, unsigned int entry)
+ {
+ 	struct ring_info *tx_skb = tp->tx_skb + entry;
+ 	struct TxDesc *desc = tp->TxDescArray + entry;
+ 
+-	dma_unmap_single(tp_to_dev(tp), le64_to_cpu(desc->addr), tx_skb->len,
++	dma_unmap_single(tp_to_dev(tp), tp->Tx_dma[entry], tx_skb->len,
+ 			 DMA_TO_DEVICE);
+ 	memset(desc, 0, sizeof(*desc));
+ 	memset(tx_skb, 0, sizeof(*tx_skb));
++	tp->Tx_dma[entry] = 0;
+ }
+ 
+ static void rtl8169_tx_clear_range(struct rtl8169_private *tp, u32 start,
+@@ -4072,6 +4094,7 @@ static int rtl8169_tx_map(struct rtl8169_private *tp, const u32 *opts, u32 len,
+ 		return ret;
+ 	}
+ 
++	tp->Tx_dma[entry] = mapping;
+ 	txd->addr = cpu_to_le64(mapping);
+ 	txd->opts2 = cpu_to_le32(opts[1]);
+ 
+@@ -4243,8 +4266,15 @@ static netdev_tx_t rtl8169_start_xmit(struct sk_buff *skb,
+ 		goto err_stop_0;
+ 	}
+ 
+-	if (unlikely(le32_to_cpu(txd_first->opts1) & DescOwn))
++	if (unlikely(le32_to_cpu(txd_first->opts1) & DescOwn)) {
++		netdev_err(dev,
++			   "TX descriptor %u unexpectedly owned (addr %016llx, shadow %016llx); stopping DMA\n",
++			   entry,
++			   (unsigned long long)le64_to_cpu(txd_first->addr),
++			   (unsigned long long)tp->Tx_dma[entry]);
++		rtl8169_dma_corruption_stop(tp);
+ 		goto err_stop_0;
++	}
+ 
+ 	opts[1] = rtl8169_tx_vlan_tag(skb);
+ 	opts[0] = 0;
+@@ -4399,12 +4429,23 @@ static void rtl_tx(struct net_device *dev, struct rtl8169_private *tp,
+ 	for (tx_left = tp->cur_tx - dirty_tx; tx_left > 0; tx_left--) {
+ 		unsigned int entry = dirty_tx % NUM_TX_DESC;
+ 		struct sk_buff *skb = tp->tx_skb[entry].skb;
++		struct TxDesc *desc = tp->TxDescArray + entry;
+ 		u32 status;
+ 
+-		status = le32_to_cpu(tp->TxDescArray[entry].opts1);
++		status = le32_to_cpu(desc->opts1);
+ 		if (status & DescOwn)
+ 			break;
+ 
++		if (unlikely(le64_to_cpu(desc->addr) != tp->Tx_dma[entry])) {
++			netdev_err(dev,
++				   "TX descriptor %u DMA address was overwritten (got %016llx expected %016llx); stopping DMA\n",
++				   entry,
++				   (unsigned long long)le64_to_cpu(desc->addr),
++				   (unsigned long long)tp->Tx_dma[entry]);
++			rtl8169_dma_corruption_stop(tp);
++			break;
++		}
++
+ 		rtl8169_unmap_tx_skb(tp, entry);
+ 
+ 		if (skb) {
+@@ -4474,6 +4515,7 @@ static int rtl_rx(struct net_device *dev, struct rtl8169_private *tp, u32 budget
+ 		unsigned int entry = cur_rx % NUM_RX_DESC;
+ 		const void *rx_buf = page_address(tp->Rx_databuff[entry]);
+ 		struct RxDesc *desc = tp->RxDescArray + entry;
++		dma_addr_t rx_dma = tp->Rx_dma[entry];
+ 		u32 status;
+ 
+ 		status = le32_to_cpu(desc->opts1);
+@@ -4486,6 +4528,16 @@ static int rtl_rx(struct net_device *dev, struct rtl8169_private *tp, u32 budget
+ 		 */
+ 		dma_rmb();
+ 
++		if (unlikely(le64_to_cpu(desc->addr) != rx_dma)) {
++			netdev_err(dev,
++				   "RX descriptor %u DMA address was overwritten (got %016llx expected %016llx); stopping DMA\n",
++				   entry,
++				   (unsigned long long)le64_to_cpu(desc->addr),
++				   (unsigned long long)rx_dma);
++			rtl8169_dma_corruption_stop(tp);
++			break;
++		}
++
+ 		if (unlikely(status & RxRES)) {
+ 			netif_info(tp, rx_err, dev, "Rx ERROR. status = %08x\n",
+ 				   status);
+@@ -4494,29 +4546,37 @@ static int rtl_rx(struct net_device *dev, struct rtl8169_private *tp, u32 budget
+ 				dev->stats.rx_length_errors++;
+ 			if (status & RxCRC)
+ 				dev->stats.rx_crc_errors++;
+-			if (status & (RxRUNT | RxCRC) && !(status & RxRWT) &&
+-			    dev->features & NETIF_F_RXALL) {
+-				goto process_pkt;
+-			}
++			netdev_err(dev,
++				   "invalid RX completion status %08x; stopping DMA\n",
++				   status);
++			rtl8169_dma_corruption_stop(tp);
++			break;
+ 		} else {
++			unsigned int raw_size = status & GENMASK(13, 0);
++			unsigned int max_size;
+ 			unsigned int pkt_size;
+ 			struct sk_buff *skb;
+ 
+-process_pkt:
+-			pkt_size = status & GENMASK(13, 0);
+-			if (likely(!(dev->features & NETIF_F_RXFCS)))
+-				pkt_size -= ETH_FCS_LEN;
+-			/*
+-			 * The driver does not support incoming fragmented
+-			 * frames. They are seen as a symptom of over-mtu
+-			 * sized frames.
+-			 */
+-			if (unlikely(rtl8169_fragmented_frame(status))) {
++			max_size = min_t(unsigned int, R8169_RX_BUF_SIZE,
++					 dev->mtu + ETH_HLEN + 2 * VLAN_HLEN +
++					 ETH_FCS_LEN);
++			if (unlikely(rtl8169_fragmented_frame(status) ||
++				     raw_size < ETH_ZLEN + ETH_FCS_LEN ||
++				     raw_size > max_size)) {
++				netdev_err(dev,
++					   "invalid RX descriptor %u status %08x length %u (expected one fragment, %u..%u); stopping DMA\n",
++					   entry, status, raw_size,
++					   ETH_ZLEN + ETH_FCS_LEN, max_size);
+ 				dev->stats.rx_dropped++;
+ 				dev->stats.rx_length_errors++;
+-				goto release_descriptor;
++				rtl8169_dma_corruption_stop(tp);
++				break;
+ 			}
+ 
++			pkt_size = raw_size;
++			if (likely(!(dev->features & NETIF_F_RXFCS)))
++				pkt_size -= ETH_FCS_LEN;
++
+ 			skb = napi_alloc_skb(&tp->napi, pkt_size);
+ 			if (unlikely(!skb)) {
+ 				dev->stats.rx_dropped++;
+@@ -4524,7 +4584,7 @@ process_pkt:
+ 			}
+ 
+ 			dma_sync_single_for_cpu(tp_to_dev(tp),
+-						le64_to_cpu(desc->addr),
++						rx_dma,
+ 						pkt_size, DMA_FROM_DEVICE);
+ 			prefetch(rx_buf);
+ 			skb_copy_to_linear_data(skb, rx_buf, pkt_size);
+@@ -4532,7 +4592,7 @@ process_pkt:
+ 			skb->len = pkt_size;
+ 
+ 			dma_sync_single_for_device(tp_to_dev(tp),
+-						   le64_to_cpu(desc->addr),
++						   rx_dma,
+ 						   pkt_size, DMA_FROM_DEVICE);
+ 
+ 			rtl8169_rx_csum(skb, status);
+@@ -4551,6 +4611,7 @@ process_pkt:
+ 			u64_stats_update_end(&tp->rx_stats.syncp);
+ 		}
+ release_descriptor:
++		desc->addr = cpu_to_le64(rx_dma);
+ 		rtl8169_mark_to_asic(desc);
+ 	}
+ 
+@@ -4618,6 +4679,11 @@ static int rtl8169_poll(struct napi_struct *napi, int budget)
+ 
+ 	rtl_tx(dev, tp, budget);
+ 
++	if (unlikely(tp->dma_corrupt)) {
++		napi_complete_done(napi, work_done);
++		return work_done;
++	}
++
+ 	if (work_done < budget) {
+ 		napi_complete_done(napi, work_done);
+ 		rtl_irq_enable(tp);
+@@ -4736,6 +4802,12 @@ static int rtl_open(struct net_device *dev)
+ 	struct pci_dev *pdev = tp->pci_dev;
+ 	int retval = -ENOMEM;
+ 
++	if (unlikely(tp->dma_corrupt)) {
++		netdev_err(dev,
++			   "DMA was stopped after descriptor corruption; reload the driver or reboot before reopening\n");
++		return -EIO;
++	}
++
+ 	pm_runtime_get_sync(&pdev->dev);
+ 
+ 	/*
+-- 
+2.50.1

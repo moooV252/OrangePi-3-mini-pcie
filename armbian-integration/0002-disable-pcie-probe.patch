@@ -1,0 +1,17 @@
+diff --git a/arch/arm64/boot/dts/allwinner/sun50i-h6-orangepi-3.dts b/arch/arm64/boot/dts/allwinner/sun50i-h6-orangepi-3.dts
+index aa09c7a75..73e37348e 100644
+--- a/arch/arm64/boot/dts/allwinner/sun50i-h6-orangepi-3.dts
++++ b/arch/arm64/boot/dts/allwinner/sun50i-h6-orangepi-3.dts
+@@ -174,7 +174,11 @@ &pcie {
+ 	vdd-supply = <&reg_dcdcd>;
+ 	slot-supply = <&reg_vcc33_wifi>;
+ 	perst-gpios = <&pio 6 14 GPIO_ACTIVE_LOW>; /* PG14 */
+-	status = "okay";
++	/*
++	 * Diagnostic only: exercise the EL2/EL1 handoff without allowing Linux
++	 * to make the first access to the H6 paged PCIe aperture.
++	 */
++	status = "disabled";
+ };
+ 
+ &pio {

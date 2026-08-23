@@ -1,0 +1,75 @@
+From: Orange Pi 3 reference-stack port
+Subject: [PATCH] arm: dts: add a buildable Orange Pi 3 bootloader DT
+
+The historical eMMC tree contains an orangepi3_defconfig and a later Linux
+board DTS, but the DTS is not registered and references controllers absent
+from this U-Boot 2019.04 device-tree base.  Consequently, the board target
+was never buildable as committed.
+
+Add a bootloader-only Orange Pi 3 DT derived from the existing, build-tested
+H6 Orange Pi common base.  That base already supplies the SD, eMMC, UART and
+regulator nodes shared by Orange Pi One Plus and Orange Pi 3.  Keep the full
+board/peripheral description in the separately loaded Linux DTB.
+
+This patch changes no DRAM, PMIC driver, TF-A, EL2, or Linux runtime code.
+---
+ arch/arm/dts/Makefile                        |  1 +
+ arch/arm/dts/sun50i-h6-orangepi-3-uboot.dts | 24 ++++++++++++++++++++++++
+ configs/orangepi3_defconfig                  |  2 +-
+ 3 files changed, 26 insertions(+), 1 deletion(-)
+ create mode 100644 arch/arm/dts/sun50i-h6-orangepi-3-uboot.dts
+
+diff --git a/arch/arm/dts/Makefile b/arch/arm/dts/Makefile
+index d27883e915..9e8e60bd11 100644
+--- a/arch/arm/dts/Makefile
++++ b/arch/arm/dts/Makefile
+@@ -467,5 +467,6 @@ dtb-$(CONFIG_MACH_SUN50I_H5) += \
+ 	sun50i-h5-orangepi-zero-plus2.dtb
+ dtb-$(CONFIG_MACH_SUN50I_H6) += \
++	sun50i-h6-orangepi-3-uboot.dtb \
+ 	sun50i-h6-orangepi-lite2.dtb \
+ 	sun50i-h6-orangepi-one-plus.dtb \
+ 	sun50i-h6-pine-h64.dtb
+diff --git a/arch/arm/dts/sun50i-h6-orangepi-3-uboot.dts b/arch/arm/dts/sun50i-h6-orangepi-3-uboot.dts
+new file mode 100644
+index 0000000000..6ae55aab00
+--- /dev/null
++++ b/arch/arm/dts/sun50i-h6-orangepi-3-uboot.dts
+@@ -0,0 +1,24 @@
++// SPDX-License-Identifier: (GPL-2.0+ or MIT)
++/* Minimal U-Boot 2019.04 DT for the Orange Pi 3. */
++
++#include "sun50i-h6-orangepi.dtsi"
++
++/ {
++	model = "OrangePi 3";
++	compatible = "xunlong,orangepi-3", "allwinner,sun50i-h6";
++
++	leds {
++		compatible = "gpio-leds";
++
++		power {
++			label = "orangepi:red:power";
++			gpios = <&r_pio 0 4 GPIO_ACTIVE_HIGH>; /* PL4 */
++			default-state = "on";
++		};
++
++		status {
++			label = "orangepi:green:status";
++			gpios = <&r_pio 0 7 GPIO_ACTIVE_HIGH>; /* PL7 */
++		};
++	};
++};
+diff --git a/configs/orangepi3_defconfig b/configs/orangepi3_defconfig
+index aae5f07f8b..9c1caf75ce 100644
+--- a/configs/orangepi3_defconfig
++++ b/configs/orangepi3_defconfig
+@@ -9,5 +9,5 @@ CONFIG_NR_DRAM_BANKS=1
+ # CONFIG_CMD_FLASH is not set
+ # CONFIG_SPL_DOS_PARTITION is not set
+ # CONFIG_SPL_EFI_PARTITION is not set
+-CONFIG_DEFAULT_DEVICE_TREE="sun50i-h6-orangepi-3"
++CONFIG_DEFAULT_DEVICE_TREE="sun50i-h6-orangepi-3-uboot"
+ CONFIG_MMC_SUNXI_SLOT_EXTRA=2
+-- 
+2.39.5

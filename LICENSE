@@ -1,0 +1,12 @@
+MIT License
+
+Copyright (c) 2026 Orange Pi 3 mini-PCIe contributors
+
+Applies to the original documentation and integration scripts in this
+repository (README files, armbian-integration/orangepi3-pcie.sh).
+
+The kernel patches (kernel-5.7.4/, kernel-6.18/) modify Linux kernel sources
+and are therefore licensed GPL-2.0-only, consistent with the kernel itself.
+
+The el2-shim/ directory is vendored from aw-el2-barebone and remains under its
+original license — see el2-shim/LICENSE.

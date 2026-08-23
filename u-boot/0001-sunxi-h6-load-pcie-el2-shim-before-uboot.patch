@@ -1,0 +1,93 @@
+diff --git a/arch/arm/dts/sunxi-u-boot.dtsi b/arch/arm/dts/sunxi-u-boot.dtsi
+index e1a9a7f5..4221dc46 100644
+--- a/arch/arm/dts/sunxi-u-boot.dtsi
++++ b/arch/arm/dts/sunxi-u-boot.dtsi
+@@ -79,6 +79,22 @@
+ 				};
+ #endif
+ 
++#if CONFIG_SUNXI_H6_EL2_HYP
++				hyp {
++					description = "Allwinner H6 PCIe EL2 shim";
++					type = "firmware";
++					arch = ARCH;
++					compression = "none";
++					load = <0x40010000>;
++					entry = <0x40010000>;
++
++					blob-ext {
++						filename = "hyp.bin";
++						missing-msg = "aw-el2-barebone";
++					};
++				};
++#endif
++
+ #if CONFIG_SUNXI_SCP_BASE
+ 				scp {
+ 					description = "SCP firmware";
+@@ -112,10 +128,18 @@
+ #else
+ 					firmware = "uboot";
+ #endif
++#if CONFIG_SUNXI_H6_EL2_HYP
++#if CONFIG_SUNXI_SCP_BASE
++					loadables = "scp", "hyp", "uboot";
++#else
++					loadables = "hyp", "uboot";
++#endif
++#else
+ #if CONFIG_SUNXI_SCP_BASE
+ 					loadables = "scp", "uboot";
+ #else
+ 					loadables = "uboot";
++#endif
+ #endif
+ 					fdt = "fdt-SEQ";
+ 				};
+diff --git a/arch/arm/mach-sunxi/Kconfig b/arch/arm/mach-sunxi/Kconfig
+index ceba96b6..375de0e4 100644
+--- a/arch/arm/mach-sunxi/Kconfig
++++ b/arch/arm/mach-sunxi/Kconfig
+@@ -267,6 +267,14 @@ config SUNXI_BL31_BASE
+ 	help
+ 	  Address where BL31 (TF-A) is loaded, or zero if BL31 is not used.
+ 
++config SUNXI_H6_EL2_HYP
++	bool "Enter Linux through the Allwinner H6 PCIe EL2 shim"
++	depends on MACH_SUN50I_H6
++	help
++	  Load an EL2 shim at 0x40010000 and enter it immediately before
++	  Linux. U-Boot remains at EL2; the shim retains EL2, installs the
++	  H6 PCIe stage-2 translation, and starts Linux at EL1.
++
+ config SUNXI_SCP_BASE
+ 	hex
+ 	default 0x00050000 if MACH_SUN50I || MACH_SUN50I_H5
+diff --git a/arch/arm/lib/bootm.c b/arch/arm/lib/bootm.c
+index 3b8c0d51..c927d75e 100644
+--- a/arch/arm/lib/bootm.c
++++ b/arch/arm/lib/bootm.c
+@@ -286,10 +286,22 @@ static void boot_jump_linux(struct bootm_headers *images, int flag)
+ 					    (u64)images->ft_addr, 0,
+ 					    (u64)images->ep,
+ 					    ES_TO_AARCH32);
+-		else
++		else {
++#ifdef CONFIG_SUNXI_H6_EL2_HYP
++			/*
++			 * Keep U-Boot on the normal, proven EL2 path. Pass the
++			 * Linux entry in x1 and enter the H6 PCIe shim in x4;
++			 * the shim installs stage-2 translation and erets to
++			 * Linux at EL1 with x0 holding the DTB and x1-x3 zeroed.
++			 */
++			armv8_switch_to_el2((u64)images->ft_addr, images->ep,
++					    0, 0, 0x40010000, ES_TO_AARCH64);
++#else
+ 			armv8_switch_to_el2((u64)images->ft_addr, 0, 0, 0,
+ 					    images->ep,
+ 					    ES_TO_AARCH64);
++#endif
++		}
+ #endif
+ 	}
+ }

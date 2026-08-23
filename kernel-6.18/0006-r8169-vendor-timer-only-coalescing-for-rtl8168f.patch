@@ -1,0 +1,45 @@
+From 625fb58d3124996ef9e55b9edf45af0bb22f4b50 Mon Sep 17 00:00:00 2001
+From: Orange Pi 3 port <port@localhost>
+Date: Sun, 23 Aug 2026 12:53:24 +0900
+Subject: [PATCH 6/7] r8169: match vendor timer-only interrupt moderation for
+ RTL8168F
+
+---
+ drivers/net/ethernet/realtek/r8169_main.c | 14 ++++++++++++--
+ 1 file changed, 12 insertions(+), 2 deletions(-)
+
+diff --git a/drivers/net/ethernet/realtek/r8169_main.c b/drivers/net/ethernet/realtek/r8169_main.c
+index 03aef6974457..7db0aceb8123 100644
+--- a/drivers/net/ethernet/realtek/r8169_main.c
++++ b/drivers/net/ethernet/realtek/r8169_main.c
+@@ -3895,6 +3895,8 @@ static void rtl_hw_start_8125(struct rtl8169_private *tp)
+ 
+ static void rtl_hw_start_8168(struct rtl8169_private *tp)
+ {
++	u16 intr_mitigate = 0;
++
+ 	if (rtl_is_8168evl_up(tp))
+ 		RTL_W8(tp, MaxTxPacketSize, EarlySize);
+ 	else
+@@ -3902,8 +3904,16 @@ static void rtl_hw_start_8168(struct rtl8169_private *tp)
+ 
+ 	rtl_hw_config(tp);
+ 
+-	/* disable interrupt coalescing */
+-	RTL_W16(tp, IntrMitigate, 0x0000);
++	tp->cp_cmd &= ~INTT_MASK;
++	if (tp->mac_version == RTL_GIGA_MAC_VER_35 ||
++	    tp->mac_version == RTL_GIGA_MAC_VER_36) {
++		/* Vendor 3.10 timer-only moderation setup for RTL8168F. */
++		tp->cp_cmd |= PktCntrDisable | 1;
++		intr_mitigate = 0x5151;
++	}
++
++	RTL_W16(tp, CPlusCmd, tp->cp_cmd);
++	RTL_W16(tp, IntrMitigate, intr_mitigate);
+ }
+ 
+ static void rtl_hw_start_8169(struct rtl8169_private *tp)
+-- 
+2.43.0
+

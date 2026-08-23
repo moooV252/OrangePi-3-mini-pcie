@@ -1,0 +1,27 @@
+From: Orange Pi 3 PCIe reference build
+Subject: [PATCH] arm64: dts: allwinner: orangepi-3: pin vendor PCIe clocks
+
+The vendor H6 Linux 3.10 stack that transfers data reliably through the
+on-board mini-PCIe slot programs PCIE_MAXI to 200 MHz and PCIE_AUX to 1 MHz.
+The Linux 5.7.4 reference DTS names both clocks but does not assign their
+rates, leaving the result dependent on inherited boot state and clock
+defaults.
+
+Pin only those two existing H6 CCU clocks on Orange Pi 3.  Do not change the
+clock parents, PCIe controller driver, reset or power sequencing, kernel
+command line, or guarded r8169 driver.  This makes the first modern-kernel
+vendor-stack comparison a DTB-only, two-rate A/B test.
+
+--- a/arch/arm64/boot/dts/allwinner/sun50i-h6-orangepi-3.dts
++++ b/arch/arm64/boot/dts/allwinner/sun50i-h6-orangepi-3.dts
+@@ -214,6 +214,8 @@
+ };
+ 
+ &pcie {
++	assigned-clocks = <&ccu CLK_PCIE_MAXI>, <&ccu CLK_PCIE_AUX>;
++	assigned-clock-rates = <200000000>, <1000000>;
+ 	vcc-supply = <&reg_bldo2>;
+ 	vdd-supply = <&reg_dcdcd>;
+ 	slot-supply = <&reg_vcc33_wifi>;
+-- 
+2.39.5

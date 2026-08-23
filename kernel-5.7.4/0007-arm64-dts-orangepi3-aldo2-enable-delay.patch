@@ -1,0 +1,25 @@
+From: Orange Pi 3 PCIe reference build
+Subject: [PATCH] arm64: dts: allwinner: orangepi-3: restore PHY rail delay
+
+The board DTS documents that the external RTL8211E Ethernet PHY requires
+GMAC-2V5 and ALDO2 to be enabled, followed by a 100 ms settling delay.  The
+comment says that reg_aldo2 provides this delay, but the property was omitted
+from the Linux 5.7.4 copy of the DTS.  Without it, the initial MDIO scan can
+miss the PHY; the MAC module and netdev still register, while ndo_open later
+fails when phylink cannot attach to the PHY.
+
+Restore the property already present in the repository's experimental board
+DTS and in later Orange Pi 3 board support.
+
+--- a/arch/arm64/boot/dts/allwinner/sun50i-h6-orangepi-3.dts
++++ b/arch/arm64/boot/dts/allwinner/sun50i-h6-orangepi-3.dts
+@@ -259,6 +259,7 @@
+ 				regulator-min-microvolt = <3300000>;
+ 				regulator-max-microvolt = <3300000>;
+ 				regulator-name = "vcc33-audio-tv-ephy-mac";
++				regulator-enable-ramp-delay = <100000>;
+ 			};
+ 
+ 			/* ALDO3 is shorted to CLDO1 */
+-- 
+2.39.5

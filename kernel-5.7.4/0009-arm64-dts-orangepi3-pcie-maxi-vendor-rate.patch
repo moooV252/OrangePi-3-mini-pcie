@@ -1,0 +1,24 @@
+From: Orange Pi 3 PCIe reference build
+Subject: [PATCH] arm64: dts: allwinner: orangepi-3: pin PCIe MAXI rate
+
+The working vendor H6 Linux 3.10 stack programs PCIE_MAXI to 200 MHz.  Pin
+only that existing H6 CCU clock on Orange Pi 3, leaving PCIE_AUX inherited.
+This isolates the master AXI/data-path clock from the two-clock v11 result.
+
+Do not change the clock parent, PCIe controller driver, reset or power
+sequencing, kernel command line, guarded r8169 driver, or any other DT
+property.
+
+--- a/arch/arm64/boot/dts/allwinner/sun50i-h6-orangepi-3.dts
++++ b/arch/arm64/boot/dts/allwinner/sun50i-h6-orangepi-3.dts
+@@ -214,6 +214,8 @@
+ };
+ 
+ &pcie {
++	assigned-clocks = <&ccu CLK_PCIE_MAXI>;
++	assigned-clock-rates = <200000000>;
+ 	vcc-supply = <&reg_bldo2>;
+ 	vdd-supply = <&reg_dcdcd>;
+ 	slot-supply = <&reg_vcc33_wifi>;
+-- 
+2.39.5

@@ -1,0 +1,27 @@
+diff --git a/arch/arm64/boot/dts/allwinner/sun50i-h6-orangepi-3.dts b/arch/arm64/boot/dts/allwinner/sun50i-h6-orangepi-3.dts
+index 73e37348e..1be7aec9f 100644
+--- a/arch/arm64/boot/dts/allwinner/sun50i-h6-orangepi-3.dts
++++ b/arch/arm64/boot/dts/allwinner/sun50i-h6-orangepi-3.dts
+@@ -119,6 +119,22 @@ &cpu0 {
+ 	cpu-supply = <&reg_dcdca>;
+ };
+ 
++/*
++ * Diagnostic only: avoid PSCI CPU_ON calls while testing the primary
++ * EL2-to-EL1 handoff without the shim's SMC trap.
++ */
++&cpu1 {
++	status = "disabled";
++};
++
++&cpu2 {
++	status = "disabled";
++};
++
++&cpu3 {
++	status = "disabled";
++};
++
+ &de {
+ 	status = "okay";
+ };

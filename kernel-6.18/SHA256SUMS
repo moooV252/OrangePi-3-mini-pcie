@@ -1,0 +1,7 @@
+97a5d57e5a98d58efb6a76a55586379a4504a2e7f8163d1d2341a3e692d9d94c  0001-arm64-allwinner-h6-add-wrapped-pcie-support.patch
+269c01e20211a18e15c4eb5f4a3c906b5526d84419237abe72a9ec945b991fec  0002-arm64-dts-h6-assign-pcie-maxi-200mhz.patch
+20fc08faf3ba6952139cdce95ab10c09df6ef1e99ab82a863e668155a8bc8630  0003-r8169-shadow-rx-dma-addresses-and-stop-on-corruption.patch
+eed7f38e97123e42a9350fcab50670c577fe40932331342cc47c6cbc074bd8ed  0004-r8169-disable-endpoint-aspm-l0s-l1.patch
+688e60ba898f53d1f339d8954208f1691a92126ca0628634a2f76071e3a87259  0005-r8169-conventional-msi-only-for-rtl8168f.patch
+2427548a87fea0de7e41b7519f53294f5a0fa685410c5ee140fe0100b8845c2b  0006-r8169-vendor-timer-only-coalescing-for-rtl8168f.patch
+2ccbc878dcaaa244a0c7d397050b0fc4b9cf646b2224b4d5816c40959920ec4d  0007-r8169-missed-msi-fallback-for-rtl8168f.patch

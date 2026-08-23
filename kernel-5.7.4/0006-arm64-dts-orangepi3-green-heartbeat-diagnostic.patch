@@ -1,0 +1,26 @@
+From: Orange Pi 3 PCIe reference build
+Subject: [PATCH] arm64: dts: make Orange Pi 3 green LED a late boot marker
+
+Make the green PL7 status LED use the heartbeat trigger once gpio-leds and the
+LED trigger subsystem have initialized. Together with the early solid-green
+marker, this gives a no-UART distinction between entering head.S and reaching
+normal device initialization.
+
+This is an optional diagnostic-only DT change, not a board default proposal.
+---
+ arch/arm64/boot/dts/allwinner/sun50i-h6-orangepi-3.dts | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/arch/arm64/boot/dts/allwinner/sun50i-h6-orangepi-3.dts b/arch/arm64/boot/dts/allwinner/sun50i-h6-orangepi-3.dts
+--- a/arch/arm64/boot/dts/allwinner/sun50i-h6-orangepi-3.dts
++++ b/arch/arm64/boot/dts/allwinner/sun50i-h6-orangepi-3.dts
+@@ -52,6 +52,7 @@
+ 		status {
+ 			label = "orangepi:green:status";
+ 			gpios = <&r_pio 0 7 GPIO_ACTIVE_HIGH>; /* PL7 */
++			linux,default-trigger = "heartbeat";
+ 		};
+ 	};
+ 
+-- 
+2.50.1

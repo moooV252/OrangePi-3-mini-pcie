@@ -1,0 +1,28 @@
+From eb00fba926dd608dbd44ef01d07dfeff38eb0cd1 Mon Sep 17 00:00:00 2001
+From: Orange Pi 3 port <port@localhost>
+Date: Sun, 23 Aug 2026 12:53:23 +0900
+Subject: [PATCH 2/7] arm64: dts: h6: assign PCIE_MAXI to 200 MHz for the
+ wrapped controller
+
+---
+ arch/arm64/boot/dts/allwinner/sun50i-h6.dtsi | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/arch/arm64/boot/dts/allwinner/sun50i-h6.dtsi b/arch/arm64/boot/dts/allwinner/sun50i-h6.dtsi
+index 549c9908c0aa..43c92e67ce60 100644
+--- a/arch/arm64/boot/dts/allwinner/sun50i-h6.dtsi
++++ b/arch/arm64/boot/dts/allwinner/sun50i-h6.dtsi
+@@ -835,6 +835,10 @@ pcie: pcie@5400000 {
+ 				 <&ccu CLK_PCIE_AUX>,
+ 				 <&ccu CLK_BUS_PCIE>;
+ 			clock-names = "ref", "axi", "aux", "bus";
++			/* Vendor 3.10 stack rate for the PCIe AXI master/data path.
++			 * Live-proven fix for RTL8168F endpoint descriptor corruption. */
++			assigned-clocks = <&ccu CLK_PCIE_MAXI>;
++			assigned-clock-rates = <200000000>;
+ 			resets = <&ccu RST_PCIE_POWERUP>, <&ccu RST_BUS_PCIE>;
+ 			reset-names = "power", "bus";
+ 			#interrupt-cells = <1>;
+-- 
+2.43.0
+

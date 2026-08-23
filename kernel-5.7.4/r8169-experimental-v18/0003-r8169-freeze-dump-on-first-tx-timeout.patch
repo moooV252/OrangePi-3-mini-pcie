@@ -1,0 +1,411 @@
+From: Orange Pi 3 PCIe diagnostics
+Subject: [PATCH] r8169: freeze and dump the first transmit timeout
+
+The H6 test reaches the transmit watchdog even with RTL8168F forced to MSI.
+The stock callback queues a reset, which destroys the stopped TX ring before
+it can be inspected.
+
+Atomically contain the first timeout in the callback, then use the existing
+driver workqueue to quiesce NAPI and dump all 64 TX descriptors.  Keep reset,
+TX, NAPI, interrupt, doorbell, link, and runtime-idle paths gated after the
+sticky stop so the first-fault state remains intact.  This is diagnostic
+containment only; it does not attempt recovery.
+---
+ drivers/net/ethernet/realtek/r8169_main.c | 235 +++++++++++++++++++++--
+ 1 file changed, 216 insertions(+), 19 deletions(-)
+
+diff --git a/drivers/net/ethernet/realtek/r8169_main.c b/drivers/net/ethernet/realtek/r8169_main.c
+index 9aa8de3..6c3e7ce 100644
+--- a/drivers/net/ethernet/realtek/r8169_main.c
++++ b/drivers/net/ethernet/realtek/r8169_main.c
+@@ -581,6 +581,7 @@ struct rtl8169_tc_offsets {
+ enum rtl_flag {
+ 	RTL_FLAG_TASK_ENABLED = 0,
+ 	RTL_FLAG_TASK_RESET_PENDING,
++	RTL_FLAG_TASK_DIAG_PENDING,
+ 	RTL_FLAG_MAX
+ };
+ 
+@@ -614,7 +615,16 @@ struct rtl8169_private {
+ 	u16 cp_cmd;
+ 	u32 irq_mask;
+ 	struct clk *clk;
+-	bool dma_corrupt;
++	unsigned long dma_corrupt;	/* Sticky diagnostic stop bit */
++	unsigned long diag_queue_state;
++	u32 diag_cur_tx;
++	u32 diag_dirty_tx;
++	u32 diag_intr_status;
++#ifdef CONFIG_BQL
++	u32 diag_bql_queued;
++	u32 diag_bql_completed;
++	u32 diag_bql_limit;
++#endif
+ 
+ 	struct {
+ 		DECLARE_BITMAP(flags, RTL_FLAG_MAX);
+@@ -1326,11 +1336,19 @@ static void rtl_irq_disable(struct rtl8169_private *tp)
+ 
+ static void rtl_irq_enable(struct rtl8169_private *tp)
+ {
++	if (unlikely(test_bit(0, &tp->dma_corrupt)))
++		return;
++
+ 	tp->irq_enabled = 1;
+ 	if (rtl_is_8125(tp))
+ 		RTL_W32(tp, IntrMask_8125, tp->irq_mask);
+ 	else
+ 		RTL_W16(tp, IntrMask, tp->irq_mask);
++
++	if (unlikely(test_bit(0, &tp->dma_corrupt))) {
++		rtl_irq_disable(tp);
++		rtl_pci_commit(tp);
++	}
+ }
+ 
+ static void rtl8169_irq_mask_and_ack(struct rtl8169_private *tp)
+@@ -2246,6 +2264,10 @@ u16 rtl8168h_2_get_adc_bias_ioffset(struct rtl8169_private *tp)
+ 
+ static void rtl_schedule_task(struct rtl8169_private *tp, enum rtl_flag flag)
+ {
++	if (flag == RTL_FLAG_TASK_RESET_PENDING &&
++	    test_bit(0, &tp->dma_corrupt))
++		return;
++
+ 	set_bit(flag, tp->wk.flags);
+ 	schedule_work(&tp->wk.work);
+ }
+@@ -3995,18 +4017,36 @@ static int rtl8169_init_ring(struct rtl8169_private *tp)
+ 	return rtl8169_rx_fill(tp);
+ }
+ 
+-static void rtl8169_dma_corruption_stop(struct rtl8169_private *tp)
++static void rtl8169_dma_quiesce(struct rtl8169_private *tp)
+ {
+-	if (tp->dma_corrupt)
+-		return;
+-
+-	tp->dma_corrupt = true;
++	netif_stop_queue(tp->dev);
++	netif_carrier_off(tp->dev);
+ 	rtl_irq_disable(tp);
+ 	RTL_W8(tp, ChipCmd, RTL_R8(tp, ChipCmd) & ~(CmdTxEnb | CmdRxEnb));
+ 	rtl_pci_commit(tp);
+ 	pci_clear_master(tp->pci_dev);
+-	netif_stop_queue(tp->dev);
+-	netif_carrier_off(tp->dev);
++}
++
++static bool rtl8169_dma_corruption_stop(struct rtl8169_private *tp)
++{
++	struct netdev_queue *txq = netdev_get_tx_queue(tp->dev, 0);
++
++	if (test_and_set_bit(0, &tp->dma_corrupt))
++		return false;
++
++	tp->diag_queue_state = READ_ONCE(txq->state);
++	tp->diag_cur_tx = READ_ONCE(tp->cur_tx);
++	tp->diag_dirty_tx = READ_ONCE(tp->dirty_tx);
++	tp->diag_intr_status = rtl_get_events(tp);
++#ifdef CONFIG_BQL
++	tp->diag_bql_queued = READ_ONCE(txq->dql.num_queued);
++	tp->diag_bql_completed = READ_ONCE(txq->dql.num_completed);
++	tp->diag_bql_limit = READ_ONCE(txq->dql.limit);
++#endif
++	clear_bit(RTL_FLAG_TASK_RESET_PENDING, tp->wk.flags);
++	rtl8169_dma_quiesce(tp);
++
++	return true;
+ }
+ 
+ static void rtl8169_unmap_tx_skb(struct rtl8169_private *tp, unsigned int entry)
+@@ -4048,14 +4088,124 @@ static void rtl8169_tx_clear(struct rtl8169_private *tp)
+ 	netdev_reset_queue(tp->dev);
+ }
+ 
++static void rtl8169_timeout_diag_work(struct rtl8169_private *tp)
++{
++	struct net_device *dev = tp->dev;
++	struct pci_dev *pdev = tp->pci_dev;
++	struct netdev_queue *txq = netdev_get_tx_queue(dev, 0);
++	unsigned int cur_tx, dirty_tx, outstanding, active_count, i;
++	unsigned long queue_state;
++	u32 intr_mask, intr_status, tx_poll;
++	u16 pci_cmd = 0;
++	int pci_err;
++#ifdef CONFIG_BQL
++	unsigned int bql_queued, bql_completed, bql_limit;
++#endif
++
++	synchronize_irq(pci_irq_vector(pdev, 0));
++	clear_bit(RTL_FLAG_TASK_RESET_PENDING, tp->wk.flags);
++	napi_disable(&tp->napi);
++
++	/* Reassert containment after any IRQ path that raced the timeout. */
++	rtl8169_dma_quiesce(tp);
++	pci_err = pci_read_config_word(pdev, PCI_COMMAND, &pci_cmd);
++	dma_rmb();
++
++	cur_tx = READ_ONCE(tp->cur_tx);
++	dirty_tx = READ_ONCE(tp->dirty_tx);
++	outstanding = tp->diag_cur_tx - tp->diag_dirty_tx;
++	active_count = min_t(unsigned int, outstanding, NUM_TX_DESC);
++	queue_state = READ_ONCE(txq->state);
++#ifdef CONFIG_BQL
++	bql_queued = READ_ONCE(txq->dql.num_queued);
++	bql_completed = READ_ONCE(txq->dql.num_completed);
++	bql_limit = READ_ONCE(txq->dql.limit);
++#endif
++
++	if (rtl_is_8125(tp)) {
++		intr_mask = RTL_R32(tp, IntrMask_8125);
++		tx_poll = RTL_R16(tp, TxPoll_8125);
++	} else {
++		intr_mask = RTL_R16(tp, IntrMask);
++		tx_poll = RTL_R8(tp, TxPoll);
++	}
++	intr_status = rtl_get_events(tp);
++
++	netdev_err(dev,
++		   "v15 TX timeout snapshot: cur_before=%u dirty_before=%u cur_now=%u dirty_now=%u outstanding=%u active=%u\n",
++		   tp->diag_cur_tx, tp->diag_dirty_tx, cur_tx, dirty_tx,
++		   outstanding, active_count);
++	netdev_err(dev,
++		   "v15 TX timeout txq: state_before=%lx state_now=%lx drv_xoff=%u stack_xoff=%u frozen=%u trans_timeout=%lu\n",
++		   tp->diag_queue_state, queue_state,
++		   !!(tp->diag_queue_state & QUEUE_STATE_DRV_XOFF),
++		   !!(tp->diag_queue_state & QUEUE_STATE_STACK_XOFF),
++		   !!(tp->diag_queue_state & QUEUE_STATE_FROZEN),
++		   READ_ONCE(txq->trans_timeout));
++#ifdef CONFIG_BQL
++	netdev_err(dev,
++		   "v15 TX timeout BQL: before=%u/%u limit=%u inflight=%u now=%u/%u limit=%u inflight=%u\n",
++		   tp->diag_bql_queued, tp->diag_bql_completed,
++		   tp->diag_bql_limit,
++		   tp->diag_bql_queued - tp->diag_bql_completed,
++		   bql_queued, bql_completed, bql_limit,
++		   bql_queued - bql_completed);
++#endif
++	netdev_err(dev,
++		   "v15 TX timeout RTL: ChipCmd=%02x IntrMask=%08x irq_mask=%08x IntrStatus_before=%08x IntrStatus_now=%08x TxPoll=%04x TxConfig=%08x RxConfig=%08x CPlusCmd=%04x PHYstatus=%02x irq_enabled=%u\n",
++		   RTL_R8(tp, ChipCmd), intr_mask, tp->irq_mask,
++		   tp->diag_intr_status, intr_status,
++		   tx_poll, RTL_R32(tp, TxConfig), RTL_R32(tp, RxConfig),
++		   RTL_R16(tp, CPlusCmd), RTL_R8(tp, PHYstatus),
++		   tp->irq_enabled);
++	netdev_err(dev,
++		   "v15 TX timeout ring: hw=%08x:%08x shadow=%016llx PCI_COMMAND(read=%d)=%04x master=%u msi=%u msix=%u\n",
++		   RTL_R32(tp, TxDescStartAddrHigh),
++		   RTL_R32(tp, TxDescStartAddrLow),
++		   (unsigned long long)tp->TxPhyAddr, pci_err, pci_cmd,
++		   !!(pci_cmd & PCI_COMMAND_MASTER), pdev->msi_enabled,
++		   pdev->msix_enabled);
++
++	for (i = 0; i < NUM_TX_DESC; i++) {
++		struct ring_info *tx_skb = tp->tx_skb + i;
++		struct TxDesc *desc = tp->TxDescArray + i;
++		unsigned int offset = (i + NUM_TX_DESC -
++					 tp->diag_dirty_tx % NUM_TX_DESC) %
++				      NUM_TX_DESC;
++		unsigned int sequence = tp->diag_dirty_tx + offset;
++		u32 opts1 = le32_to_cpu(READ_ONCE(desc->opts1));
++
++		netdev_err(dev,
++			   "v15 TX timeout desc: entry=%u active=%u seq=%u opts1=%08x own=%u opts2=%08x addr=%016llx Tx_dma=%016llx tx_skb.len=%u tx_skb.skb=%px\n",
++			   i, offset < active_count, sequence, opts1,
++			   !!(opts1 & DescOwn),
++			   le32_to_cpu(READ_ONCE(desc->opts2)),
++			   (unsigned long long)le64_to_cpu(READ_ONCE(desc->addr)),
++			   (unsigned long long)READ_ONCE(tp->Tx_dma[i]),
++			   READ_ONCE(tx_skb->len), READ_ONCE(tx_skb->skb));
++	}
++
++	napi_enable(&tp->napi);
++}
++
+ static void rtl_reset_work(struct rtl8169_private *tp)
+ {
+ 	struct net_device *dev = tp->dev;
+ 	int i;
+ 
++	if (unlikely(test_bit(0, &tp->dma_corrupt))) {
++		rtl8169_dma_quiesce(tp);
++		return;
++	}
++
+ 	napi_disable(&tp->napi);
+ 	netif_stop_queue(dev);
+ 	synchronize_rcu();
++	if (unlikely(test_bit(0, &tp->dma_corrupt))) {
++		rtl8169_dma_quiesce(tp);
++		napi_enable(&tp->napi);
++		return;
++	}
+ 
+ 	rtl8169_hw_reset(tp);
+ 
+@@ -4067,6 +4217,10 @@ static void rtl_reset_work(struct rtl8169_private *tp)
+ 
+ 	napi_enable(&tp->napi);
+ 	rtl_hw_start(tp);
++	if (unlikely(test_bit(0, &tp->dma_corrupt))) {
++		rtl8169_dma_quiesce(tp);
++		return;
++	}
+ 	netif_wake_queue(dev);
+ }
+ 
+@@ -4074,7 +4228,12 @@ static void rtl8169_tx_timeout(struct net_device *dev, unsigned int txqueue)
+ {
+ 	struct rtl8169_private *tp = netdev_priv(dev);
+ 
+-	rtl_schedule_task(tp, RTL_FLAG_TASK_RESET_PENDING);
++	if (rtl8169_dma_corruption_stop(tp)) {
++		netdev_err(dev,
++			   "v15 TX queue %u timeout frozen; diagnostic worker queued\n",
++			   txqueue);
++		rtl_schedule_task(tp, RTL_FLAG_TASK_DIAG_PENDING);
++	}
+ }
+ 
+ static int rtl8169_tx_map(struct rtl8169_private *tp, const u32 *opts, u32 len,
+@@ -4243,6 +4402,9 @@ static bool rtl_chip_supports_csum_v2(struct rtl8169_private *tp)
+ 
+ static void rtl8169_doorbell(struct rtl8169_private *tp)
+ {
++	if (unlikely(test_bit(0, &tp->dma_corrupt)))
++		return;
++
+ 	if (rtl_is_8125(tp))
+ 		RTL_W16(tp, TxPoll_8125, BIT(0));
+ 	else
+@@ -4259,6 +4421,11 @@ static netdev_tx_t rtl8169_start_xmit(struct sk_buff *skb,
+ 	bool stop_queue, door_bell;
+ 	u32 opts[2];
+ 
++	if (unlikely(test_bit(0, &tp->dma_corrupt))) {
++		netif_stop_queue(dev);
++		return NETDEV_TX_BUSY;
++	}
++
+ 	txd_first = tp->TxDescArray + entry;
+ 
+ 	if (unlikely(!rtl_tx_slots_avail(tp, frags))) {
+@@ -4432,6 +4599,9 @@ static void rtl_tx(struct net_device *dev, struct rtl8169_private *tp,
+ 		struct TxDesc *desc = tp->TxDescArray + entry;
+ 		u32 status;
+ 
++		if (unlikely(test_bit(0, &tp->dma_corrupt)))
++			break;
++
+ 		status = le32_to_cpu(desc->opts1);
+ 		if (status & DescOwn)
+ 			break;
+@@ -4473,7 +4643,8 @@ static void rtl_tx(struct net_device *dev, struct rtl8169_private *tp,
+ 		 * ring status.
+ 		 */
+ 		smp_mb();
+-		if (netif_queue_stopped(dev) &&
++		if (!test_bit(0, &tp->dma_corrupt) &&
++		    netif_queue_stopped(dev) &&
+ 		    rtl_tx_slots_avail(tp, MAX_SKB_FRAGS)) {
+ 			netif_wake_queue(dev);
+ 		}
+@@ -4518,6 +4689,9 @@ static int rtl_rx(struct net_device *dev, struct rtl8169_private *tp, u32 budget
+ 		dma_addr_t rx_dma = tp->Rx_dma[entry];
+ 		u32 status;
+ 
++		if (unlikely(test_bit(0, &tp->dma_corrupt)))
++			break;
++
+ 		status = le32_to_cpu(desc->opts1);
+ 		if (status & DescOwn)
+ 			break;
+@@ -4663,8 +4837,14 @@ static void rtl_task(struct work_struct *work)
+ 	    !test_bit(RTL_FLAG_TASK_ENABLED, tp->wk.flags))
+ 		goto out_unlock;
+ 
+-	if (test_and_clear_bit(RTL_FLAG_TASK_RESET_PENDING, tp->wk.flags))
++	if (test_and_clear_bit(RTL_FLAG_TASK_DIAG_PENDING, tp->wk.flags)) {
++		clear_bit(RTL_FLAG_TASK_RESET_PENDING, tp->wk.flags);
++		rtl8169_timeout_diag_work(tp);
++	} else if (test_and_clear_bit(RTL_FLAG_TASK_RESET_PENDING,
++				       tp->wk.flags) &&
++		   !test_bit(0, &tp->dma_corrupt)) {
+ 		rtl_reset_work(tp);
++	}
+ out_unlock:
+ 	rtl_unlock_work(tp);
+ }
+@@ -4673,29 +4853,42 @@ static int rtl8169_poll(struct napi_struct *napi, int budget)
+ {
+ 	struct rtl8169_private *tp = container_of(napi, struct rtl8169_private, napi);
+ 	struct net_device *dev = tp->dev;
+-	int work_done;
++	int work_done = 0;
++
++	if (unlikely(test_bit(0, &tp->dma_corrupt)))
++		goto frozen;
+ 
+ 	work_done = rtl_rx(dev, tp, (u32) budget);
++	if (unlikely(test_bit(0, &tp->dma_corrupt)))
++		goto frozen;
+ 
+ 	rtl_tx(dev, tp, budget);
+ 
+-	if (unlikely(tp->dma_corrupt)) {
+-		napi_complete_done(napi, work_done);
+-		return work_done;
+-	}
++	if (unlikely(test_bit(0, &tp->dma_corrupt)))
++		goto frozen;
+ 
+ 	if (work_done < budget) {
+ 		napi_complete_done(napi, work_done);
+-		rtl_irq_enable(tp);
++		if (likely(!test_bit(0, &tp->dma_corrupt)))
++			rtl_irq_enable(tp);
+ 	}
+ 
+ 	return work_done;
++
++frozen:
++	napi_complete_done(napi, work_done);
++	return work_done;
+ }
+ 
+ static void r8169_phylink_handler(struct net_device *ndev)
+ {
+ 	struct rtl8169_private *tp = netdev_priv(ndev);
+ 
++	if (unlikely(test_bit(0, &tp->dma_corrupt))) {
++		netif_carrier_off(ndev);
++		return;
++	}
++
+ 	if (netif_carrier_ok(ndev)) {
+ 		rtl_link_chg_patch(tp);
+ 		pm_request_resume(&tp->pci_dev->dev);
+@@ -4802,9 +4995,9 @@ static int rtl_open(struct net_device *dev)
+ 	struct pci_dev *pdev = tp->pci_dev;
+ 	int retval = -ENOMEM;
+ 
+-	if (unlikely(tp->dma_corrupt)) {
++	if (unlikely(test_bit(0, &tp->dma_corrupt))) {
+ 		netdev_err(dev,
+-			   "DMA was stopped after descriptor corruption; reload the driver or reboot before reopening\n");
++			   "DMA was stopped after a diagnostic fault; reload the driver or reboot before reopening\n");
+ 		return -EIO;
+ 	}
+ 
+@@ -5036,6 +5229,10 @@ static int rtl8169_runtime_resume(struct device *device)
+ static int rtl8169_runtime_idle(struct device *device)
+ {
+ 	struct net_device *dev = dev_get_drvdata(device);
++	struct rtl8169_private *tp = netdev_priv(dev);
++
++	if (unlikely(test_bit(0, &tp->dma_corrupt)))
++		return -EBUSY;
+ 
+ 	if (!netif_running(dev) || !netif_carrier_ok(dev))
+ 		pm_schedule_suspend(device, 10000);

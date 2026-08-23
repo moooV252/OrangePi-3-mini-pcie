@@ -1,0 +1,32 @@
+From: Orange Pi 3 PCIe reference build
+Subject: [PATCH] build: keep original EL2 runtime with modern toolchains
+
+This is the exact Makefile-only delta between Icenowy's reference revision
+b40bcb75cfa0acfaea84a5234fb225240b32b749 and the later build-fix revision
+beeae4c16393c0b76ceb14ff0d9e14bd9979ec25.  It does not change any runtime
+source, exception handling, page tables, or register programming.
+---
+ Makefile | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/Makefile b/Makefile
+index c523358..229e50f 100644
+--- a/Makefile
++++ b/Makefile
+@@ -16,12 +16,12 @@ DEFINES += -DNDEBUG
+ endif
+ 
+ ASFLAGS = $(INCLUDES) $(DEFINES) -D__ASSEMBLY__
+-CFLAGS = $(INCLUDES) $(DEFINES) -O2
++CFLAGS = $(INCLUDES) $(DEFINES) -O2 -mno-outline-atomics -fno-stack-protector
+ 
+ LDSCRIPT = ldscripts/a64.ld
+ LDSCRIPTS = ldscripts/a64.ld ldscripts/common.ld
+ 
+-LDFLAGS = -nostdlib -nostartfiles -static -T $(LDSCRIPT)
++LDFLAGS = -nostdlib -static -T $(LDSCRIPT)
+ 
+ OBJS = start.o init.o uart.o stack.o exceptions.o exception_funcs.o panic.o pgtables.o trapped_funcs.o
+ 
+-- 
+2.50.1
