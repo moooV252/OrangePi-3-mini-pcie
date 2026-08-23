@@ -138,6 +138,26 @@ See `NOTE-20260823-r8169-6.18-throughput-fix.md` §10 for the full experiment lo
 
 ## Reproducing the build
 
+Prereqs: a Linux host (or WSL) with `git` and Docker; nothing else — the script
+handles the rest.
+
+### One-shot script (recommended)
+
+```bash
+git clone <this repo>
+cd commit
+./build-orangepi3-image.sh            # builds in ~/armbian-build
+# or: ./build-orangepi3-image.sh /path/to/existing/armbian-build
+```
+
+The script verifies patch integrity first, then installs every component into
+the correct `userpatches/` location (kernel series → `kernel/archive/sunxi-6.18/`,
+U-Boot patch → `u-boot/v2026.07-sunxi64/`, EL2 shim → `sources/aw-el2-barebone/`,
+extension → `extensions/`), clears any stale diagnostic patches, and launches the
+build. Image lands in `<armbian>/output/image/`.
+
+### Manual steps
+
 Prereqs: an Armbian build environment (Docker recommended) and this repo.
 
 ```bash
