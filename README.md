@@ -11,7 +11,7 @@ contains the H6 PCIe controller's known failure modes.
 | | Stock image | This stack |
 |---|---|---|
 | mini-PCIe enumeration | ✗ (port dead) | ✓ |
-| Throughput (RX / TX) | — | 832–873 / 717–824 Mbit/s |
+| Throughput (RX / TX) | — | 832–949 / 717–949 Mbit/s |
 | Missed-MSI containment | — | ~1 event per 25 s of traffic, ≤1 ms impact |
 | Boot | — | zero-touch (all fixes baked into the image) |
 
@@ -67,7 +67,7 @@ commit/
 | Era | Kernel | Source tree | What was taken |
 |---|---|---|---|
 | Origin | 3.10 vendor BSP | Allwinner/Longshan Android BSP | Proof it can work (>800 Mbit/s reported); entirely different PCIe/MSI path, nothing reusable directly |
-| Reference | 5.7.4 | [GermanAizek](https://github.com/GermanAizek) + [ingamedeo](https://github.com/ingamedeo) OrangePi-3-H6-mainline trees | Wrapped-PCIE DTS approach, EL2-shim concept, first r8169 hardening. Our `kernel-5.7.4/` folder is the evolved form of this lineage |
+| Reference | 5.7.4 | [GermanAizek](https://github.com/GermanAizek/OrangePi-3-H6-mainline) + [ingamedeo](https://github.com/ingamedeo/orangepi3-h6-mainline) OrangePi-3-H6-mainline trees | Wrapped-PCIE DTS approach, EL2-shim concept, first r8169 hardening. Our `kernel-5.7.4/` folder is the evolved form of this lineage |
 | Current | 6.18.41 | mainline `sunxi` branch via Armbian (`KERNELBRANCH=commit:2fe59671…`) | Everything else rewritten/revalidated against the modern kernel: new wrapped-PCIe DTS patch, new r8169 series with hrtimer fallback |
 | EL2 shim | — | [aw-el2-barebone](https://github.com/anonymix007/aw-el2-barebone) (Allwinner EL2 barebone) | Vendored under `el2-shim/`; built by the Armbian extension into `hyp.bin` |
 
@@ -214,3 +214,49 @@ Working and validated on hardware (2026-08). Open items and the full experiment
 chronology live in the notes referenced above; the deepest remaining unknown is
 *why* the 6.18 DWC MSI path drops edge-triggered interrupts where 5.7.4 did not
 — the fallback contains it, but doesn't explain it.
+
+
+## Iperf3 stats - best run, against windows peer
+
+```
+root@orangepi3:~# iperf3 -s
+-----------------------------------------------------------
+Server listening on 5201 (test #1)
+-----------------------------------------------------------
+Accepted connection from 192.168.1.3, port 62655
+[  5] local 192.168.1.50 port 5201 connected to 192.168.1.3 port 62656
+[ ID] Interval           Transfer     Bitrate
+[  5]   0.00-1.00   sec   113 MBytes   946 Mbits/sec
+[  5]   1.00-2.00   sec   113 MBytes   950 Mbits/sec
+[  5]   2.00-3.00   sec   113 MBytes   949 Mbits/sec
+[  5]   3.00-4.00   sec   113 MBytes   949 Mbits/sec
+[  5]   4.00-5.00   sec   113 MBytes   950 Mbits/sec
+[  5]   5.00-6.00   sec   113 MBytes   949 Mbits/sec
+[  5]   6.00-7.00   sec   113 MBytes   949 Mbits/sec
+[  5]   7.00-8.00   sec   113 MBytes   949 Mbits/sec
+[  5]   8.00-9.00   sec   113 MBytes   950 Mbits/sec
+[  5]   9.00-10.00  sec   113 MBytes   949 Mbits/sec
+- - - - - - - - - - - - - - - - - - - - - - - - -
+[ ID] Interval           Transfer     Bitrate
+[  5]   0.00-10.00  sec  1.10 GBytes   949 Mbits/sec                  receiver
+-----------------------------------------------------------
+Server listening on 5201 (test #2)
+-----------------------------------------------------------
+Accepted connection from 192.168.1.3, port 62661
+[  5] local 192.168.1.50 port 5201 connected to 192.168.1.3 port 62662
+[ ID] Interval           Transfer     Bitrate         Retr  Cwnd
+[  5]   0.00-1.00   sec   112 MBytes   938 Mbits/sec    0    242 KBytes
+[  5]   1.00-2.00   sec   113 MBytes   945 Mbits/sec    0    282 KBytes
+[  5]   2.00-3.00   sec   113 MBytes   951 Mbits/sec    0    301 KBytes
+[  5]   3.00-4.00   sec   113 MBytes   948 Mbits/sec    0    322 KBytes
+[  5]   4.00-5.00   sec   113 MBytes   951 Mbits/sec    0    354 KBytes
+[  5]   5.00-6.00   sec   114 MBytes   954 Mbits/sec    0    394 KBytes
+[  5]   6.00-7.00   sec   113 MBytes   951 Mbits/sec    0    413 KBytes
+[  5]   7.00-8.00   sec   113 MBytes   946 Mbits/sec    0    432 KBytes
+[  5]   8.00-9.00   sec   113 MBytes   949 Mbits/sec    0    456 KBytes
+[  5]   9.00-10.00  sec   113 MBytes   950 Mbits/sec   30    402 KBytes
+[  5]  10.00-10.01  sec  1.38 MBytes  1.30 Gbits/sec    0    402 KBytes
+- - - - - - - - - - - - - - - - - - - - - - - - -
+[ ID] Interval           Transfer     Bitrate         Retr
+[  5]   0.00-10.01  sec  1.11 GBytes   949 Mbits/sec   30            sender
+```
