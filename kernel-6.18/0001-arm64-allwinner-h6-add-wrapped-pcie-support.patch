@@ -1,7 +1,7 @@
 From c0906d7514a78764e383215dab2dac1cbdb0c56c Mon Sep 17 00:00:00 2001
 From: Orange Pi 3 port <port@localhost>
 Date: Sun, 23 Aug 2026 12:53:23 +0900
-Subject: [PATCH 1/7] arm64: allwinner H6 wrapped PCIe support with native
+Subject: [PATCH 1/8] arm64: allwinner H6 wrapped PCIe support with native
  identity DMA
 
 ---

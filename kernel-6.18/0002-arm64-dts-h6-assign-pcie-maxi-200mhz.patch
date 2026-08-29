@@ -1,7 +1,7 @@
 From eb00fba926dd608dbd44ef01d07dfeff38eb0cd1 Mon Sep 17 00:00:00 2001
 From: Orange Pi 3 port <port@localhost>
 Date: Sun, 23 Aug 2026 12:53:23 +0900
-Subject: [PATCH 2/7] arm64: dts: h6: assign PCIE_MAXI to 200 MHz for the
+Subject: [PATCH 2/8] arm64: dts: h6: assign PCIE_MAXI to 200 MHz for the
  wrapped controller
 
 ---

@@ -1,7 +1,7 @@
 From 71d553e05a9ed983331e50f5ff35eec17b81c366 Mon Sep 17 00:00:00 2001
 From: Orange Pi 3 port <port@localhost>
 Date: Sun, 23 Aug 2026 12:53:24 +0900
-Subject: [PATCH 4/7] r8169: disable endpoint PCIe L0s/L1 link states
+Subject: [PATCH 4/8] r8169: disable endpoint PCIe L0s/L1 link states
 
 ---
  drivers/net/ethernet/realtek/r8169_main.c | 11 ++++++++++-

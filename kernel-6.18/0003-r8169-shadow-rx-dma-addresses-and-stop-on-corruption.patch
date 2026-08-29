@@ -1,7 +1,7 @@
 From 222b53e58f712381bcb7fcdf76b5695e5bd5b1c7 Mon Sep 17 00:00:00 2001
 From: Orange Pi 3 port <port@localhost>
 Date: Sun, 23 Aug 2026 12:53:23 +0900
-Subject: [PATCH 3/7] r8169: shadow RX DMA addresses and stop DMA on descriptor
+Subject: [PATCH 3/8] r8169: shadow RX DMA addresses and stop DMA on descriptor
  corruption
 
 ---

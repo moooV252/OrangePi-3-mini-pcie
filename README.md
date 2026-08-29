@@ -1,6 +1,7 @@
-# Orange Pi 3 (H6) mini-PCIe: RTL8168F gigabit Ethernet on mainline Linux
+# Orange Pi 3 (H6) mini-PCIe on mainline Linux
+## Includes adapted RTL8168F gigabit ethernet drivers
 
-This project brings the Orange Pi 3 mini-PCIe port up on modern kernels and gets full wire speed out of an RTL8168F card in it. The result is a zero-touch Armbian image for BOARD=orangepi3. The mini-PCIe slot enumerates, the RTL8168F links at 1 Gbit/s, and iperf runs at 790 to 870 Mbit/s per direction in single and multi-stream tests. A driver-level safety net contains the known failure modes of the H6 PCIe controller.
+This project brings the Orange Pi 3 mini-PCIe slot up on modern kernels, getting full speed out of an RTL8168F card inserted in the slot. The result is a zero-touch Armbian image for BOARD=orangepi3. The mini-PCIe slot enumerates, the RTL8168F links at 1 Gbit/s, and iperf runs at 790 to 950 Mbit/s per direction in single and multi-stream tests. A driver-level safety net contains the known failure modes of the H6 PCIe controller.
 
 In the stock image, the port is dead and mini-PCIe enumeration fails. In this stack, enumeration succeeds. Throughput reaches 832 to 949 Mbit/s RX and 717 to 949 Mbit/s TX. Missed-MSI containment happens about once every 25 s of traffic, with 1 ms or less impact. The boot is zero-touch, with all fixes baked into the image.
 
@@ -28,6 +29,7 @@ The r8169 driver is hardened for RTL8168F on H6 using patches 0003 to 0007:
 3. Patch 0005 forces conventional MSI and does not use MSI-X.
 4. Patch 0006 makes vendor timer-only coalescing available, default off.
 5. Patch 0007 adds a missed-MSI fallback. It uses an hrtimer-based poller with HRTIMER_MODE_REL_SOFT, which gives a true sub-ms period despite CONFIG_HZ=250. It has a module parameter poll_ms with default 1 ms. It raises NAPI weight from 64 to 256. When a poll finds latched-but-unsignalled completions, the driver credits them and re-arms quickly.
+6. Patch 0008 adds an automatic r8169 recovery path for the H6 MSI-drop RX latch, where the card stops delivering RX frames after missed MSI events. It watches the live per-CPU RX counter during the missed-MSI fallback poll and, after a stall, first restarts PHY autonegotiation, escalating to a full chip reset only if allow_chip_reset=1 is enabled.
 
 The fallback costs about 4% sys CPU at full gigabit and turns would-be multi-second stalls into 1 ms or less blips, about 1 per 25 s. Without it the port eventually hangs. With a jiffy-quantized version it runs at about 200 Mbit/s. With hrtimer and NAPI weight 256 it reaches the numbers above.
 
@@ -50,10 +52,6 @@ The fallback costs about 4% sys CPU at full gigabit and turns would-be multi-sec
 14. SG/GSO enable helps TX. Test: TX drops to about 690 Mbit/s. Verdict: reverted.
 15. TCP buffers/qdisc/BBR tuning closes the last gap. Test: swept buffers 16 MB, fq versus fq_codel. Verdict: neutral, BBR not built.
 16. The remaining gap is the peer NIC, ASIX AX88179 USB, not the board. Test: the board caps identically to two different peers, the peer reports hundreds of retransmits under load, and board TX errors are about 0. Verdict: peer-side, jumbo frames are the next lever.
-
-## Why patch 0007 looks like overkill
-
-It is not defensive programming gone wild. Each piece answers a measured failure. The shadow checks answer descriptor corruption observed on real hardware. The poller answers measured MSI loss. The hrtimer answers a measured jiffy-quantization trap. The NAPI weight answers a measured arithmetic ceiling.
 
 ## Status
 
@@ -109,15 +107,10 @@ Accepted connection from 192.168.1.3, port 62661
 ## Results summary
 
 Link: 1 Gbit/s full duplex, flow-control rx/tx.
-
 Single-stream iperf3: 793 to 836 Mbit/s RX, 756 to 764 Mbit/s TX.
-
 Multi-stream iperf3 with -P 4 to 8: up to 873 Mbit/s RX, 806 to 824 Mbit/s TX.
-
 MSI misses caught by fallback: about 1 per 25,000 polls, with 1 ms or less impact each.
-
 CPU idle at full RX: about 96%.
-
 Known remaining bottleneck: peer-side USB NIC receive path, not the board.
 
 ## One-shot script, recommended
@@ -162,36 +155,34 @@ Optional boot-isolation diagnostics exist for boards without serial console. Set
 
 ## History, which implementation came from which tree
 
-Origin: kernel 3.10 vendor BSP. Source tree is Allwinner/Longshan Android BSP. What was taken: proof it can work, with >800 Mbit/s reported. It uses an entirely different PCIe/MSI path, and nothing is reusable directly.
+| Era | Kernel | Source | Details |
+|---|---|---|---|
+| Origin | 3.10 vendor BSP | [Allwinner BSP](https://github.com/orangepi-xunlong/OrangePiH6_kernel) | Proof of concept (>800 Mbit/s). Not directly reusable. |
+| Reference | 5.7.4 | [GermanAizek](https://github.com/GermanAizek/OrangePi-3-H6-mainline) and [ingamedeo](https://github.com/ingamedeo/orangepi3-h6-mainline) trees | Wrapped-PCIE DTS, EL2-shim concept, r8169 hardening. |
+| Current | 6.18.41 | mainline sunxi via Armbian | Rewritten and validated. New DTS and r8169 hrtimer fallback. |
+| EL2 shim | N/A | [aw-el2-barebone](https://github.com/anonymix007/aw-el2-barebone) | Vendored under el2-shim/ and built into hyp.bin. |
 
-Reference: kernel 5.7.4. Source trees are [GermanAizek](https://github.com/GermanAizek/OrangePi-3-H6-mainline) and [ingamedeo](https://github.com/ingamedeo/orangepi3-h6-mainline), the OrangePi-3-H6-mainline trees. What was taken: wrapped-PCIE DTS approach, EL2-shim concept, first r8169 hardening. Our kernel-5.7.4 folder is the evolved form of this lineage.
-
-Current: kernel 6.18.41. Source tree is mainline sunxi branch via Armbian with KERNELBRANCH=commit:2fe59671... What was taken: everything else rewritten and revalidated against the modern kernel, including a new wrapped-PCIe DTS patch and a new r8169 series with hrtimer fallback.
-
-EL2 shim: kernel not applicable. Source tree is [aw-el2-barebone](https://github.com/anonymix007/aw-el2-barebone), the Allwinner EL2 barebone. What was taken: vendored under el2-shim/ and built by the Armbian extension into hyp.bin.
-
-The 5.7.4 patches are kept for provenance only. Do not apply them to a modern tree. The 6.18 series supersedes them completely, but it reuses their ideas. Descriptor shadowing becomes RX-only shadow plus stop-on-corruption. MSI forcing remains. Vendor coalescing experiments reduce to one optional timer-only flag. The missed-MSI diagnostic fallback becomes a production missed-MSI fallback with hrtimer.
+Origin: kernel 3.10 vendor BSP. Source tree is Allwinner BSP. What was taken: proof it can work, with >800 Mbit/s reported. It uses an entirely different PCIe/MSI path, and nothing is reusable directly.
 
 ## Repository layout
 
 ```text
-commit/
-  kernel-5.7.4/
-    Historical lineage, Linux 5.7.4, 2020-era BSP work
-    0001 to 0010: full patch set as used then, covering DTS clocks, LED diagnostics, toolchain fixes, r8169 shadow-DMA
-    r8169-experimental-v18/
-      0001 to 0006: final experimental r8169 series of that era, ending with the missed-MSI diagnostic fallback that is the direct ancestor of today's patch 0007
-  kernel-6.18/
-    Current, validated series, Linux 6.18.41
-    0001 to 0007-*.patch: the seven patches, in application order
-    SHA256SUMS: integrity manifest, verify before use
-  u-boot/
-    0001-sunxi-h6-load-pcie-el2-shim-before-uboot.patch
-  el2-shim/
-    aw-el2-barebone, the EL2 hypervisor stub, C plus ARM64 asm, builds to hyp.bin
-  armbian-integration/
-    orangepi3-pcie.sh: Armbian extension that wires everything together
-    00xx-disable-*.patch: optional boot-isolation diagnostics, off by default
+kernel-5.7.4/
+  Historical lineage, Linux 5.7.4, 2020-era BSP work
+  0001 to 0010: full patch set as used then, covering DTS clocks, LED diagnostics, toolchain fixes, r8169 shadow-DMA
+  r8169-experimental-v18/
+    0001 to 0006: final experimental r8169 series of that era, ending with the missed-MSI diagnostic fallback that is the direct ancestor of today's patch 0007
+kernel-6.18/
+  Current, validated series, Linux 6.18.41
+  0001 to 0007-*.patch: the seven patches, in application order
+  SHA256SUMS: integrity manifest, verify before use
+u-boot/
+  0001-sunxi-h6-load-pcie-el2-shim-before-uboot.patch
+el2-shim/
+  aw-el2-barebone, the EL2 hypervisor stub, C plus ARM64 asm, builds to hyp.bin
+armbian-integration/
+  orangepi3-pcie.sh: Armbian extension that wires everything together
+  00xx-disable-*.patch: optional boot-isolation diagnostics, off by default
 ```
 
 ## Reproducing the build
@@ -201,7 +192,5 @@ Prereqs: a Linux host or WSL with git and Docker. That is all. The script handle
 ## License and credits
 
 Kernel patches: GPL-2.0, Linux kernel licensing applies.
-
 EL2 shim: see el2-shim/LICENSE, vendored from aw-el2-barebone.
-
 This work is built on the work of the GermanAizek and ingamedeo mainline-H6 communities, the aw-el2-barebone author(s), and the Armbian project.

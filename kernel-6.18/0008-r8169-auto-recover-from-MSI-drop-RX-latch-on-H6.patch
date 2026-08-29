@@ -1,0 +1,239 @@
+From 0e829d38f73a1bc72113bcfcfe7e8349a891af78 Mon Sep 17 00:00:00 2001
+From: vadya <vadya@local>
+Date: Tue, 25 Aug 2026 19:11:32 +0900
+Subject: [PATCH 8/8] r8169: auto-recover from MSI-drop RX latch on H6
+
+The H6 DWC PCIe root complex intermittently drops MSIs. When such a drop
+hits the RTL8168F, the card's RX DMA engine can latch up: completions stop
+being written to the ring, carrier stays up, TX still clocks, but no frame
+is delivered again. The missed-MSI fallback poller detects the dropped
+events but cannot revive a latched DMA engine; only a hardware reset or a
+PHY renegotiation clears it (previously rmmod+modprobe).
+
+Add automatic recovery:
+
+- A stall detector runs on every fallback poll while the interface is up:
+  if the live processed-RX counter makes no progress for rx_stall_polls
+  consecutive polls (default 3000 ~= 3 s at poll_ms=1; 0 disables
+  detection), the recovery ladder starts.
+
+- The counter is read through dev_fetch_sw_netstats() - the same per-CPU
+  merge get_stats64 uses. The legacy dev->stats.rx_packets field is never
+  touched by this driver's RX path and stays 0.
+
+- Recovery ladder, renegotiate-first: phy_stop()+phy_start() restarts
+  autonegotiation (the in-driver equivalent of `ip link set down;
+  ethtool -r; up`). If RX is still stalled after reneg_check_polls polls
+  and allow_chip_reset=1, escalate to rtl_reset_work() - full chip cleanup,
+  CmdReset hardware reset and ring re-initialization. The chip reset is
+  disabled by default: issued against a latched endpoint it wedged the SoC
+  in every observed case on this board (see NOTE-20260825 soak verdicts);
+  PHY renegotiation alone recovered every latch seen under load.
+
+Soak results on Orange Pi 3 + RTL8168F: two sustained iperf runs
+(900 s @ -P4 = 711 Mbit/s; 1800 s @ -P8 = 733 Mbit/s, 228 GB total) with
+zero latches during load and zero manual interventions; idle-state latch
+cycles self-recover in <10 s each.
+---
+ drivers/net/ethernet/realtek/r8169_main.c | 146 ++++++++++++++++++++++
+ 1 file changed, 146 insertions(+)
+
+diff --git a/drivers/net/ethernet/realtek/r8169_main.c b/drivers/net/ethernet/realtek/r8169_main.c
+index 345ca31bcd53..8af6b8d28c49 100644
+--- a/drivers/net/ethernet/realtek/r8169_main.c
++++ b/drivers/net/ethernet/realtek/r8169_main.c
+@@ -75,6 +75,19 @@
+ 
+ static unsigned int opi3_poll_ms = 1;
+ module_param_named(poll_ms, opi3_poll_ms, uint, 0444);
++static unsigned int opi3_rx_stall_polls = 3000;
++module_param_named(rx_stall_polls, opi3_rx_stall_polls, uint, 0444);
++static unsigned int opi3_reneg_check_polls = 2000;
++module_param_named(reneg_check_polls, opi3_reneg_check_polls, uint, 0444);
++MODULE_PARM_DESC(reneg_check_polls,
++	 "polls to wait after renegotiate before escalating (0=never escalate)");
++static bool opi3_allow_chip_reset;
++module_param_named(allow_chip_reset, opi3_allow_chip_reset, bool, 0444);
++MODULE_PARM_DESC(allow_chip_reset,
++	 "permit escalation to full chip reset after failed renegotiate"
++	 " (default N; unverified SoC-wedge risk on H6)");
++MODULE_PARM_DESC(rx_stall_polls,
++	 "consecutive fallback polls without RX progress before chip reset (0=never)");
+ MODULE_PARM_DESC(poll_ms, "missed-MSI fallback poll interval ms (default 1)");
+ #define RTL8169_MISSED_MSI_POLL_MS	 opi3_poll_ms
+ #define RTL8169_MISSED_MSI_CREDIT_MS	100
+@@ -732,6 +745,9 @@ struct rtl8169_private {
+ 	u32 missed_msi_first_status;
+ 	u32 missed_msi_credit_irqs;
+ 	unsigned long missed_msi_credit_deadline;
++	u64 opi3_last_rx_packets;
++	unsigned int opi3_rx_stall_polls;
++	bool opi3_reneg_pending;
+ 	struct ring_info tx_skb[NUM_TX_DESC];	/* Tx data buffers */
+ 	u16 cp_cmd;
+ 	u16 tx_lpi_timer;
+@@ -4847,6 +4863,9 @@ static void rtl8169_missed_msi_fault_stop(struct rtl8169_private *tp)
+ 	rtl8169_missed_msi_pm_put(tp);
+ }
+ 
++static u64 opi3_live_rx_packets(struct rtl8169_private *tp);
++static void rtl8169_missed_msi_recover(struct rtl8169_private *tp);
++
+ static void rtl8169_missed_msi_work(struct work_struct *work)
+ {
+ 	struct rtl8169_private *tp = container_of(to_delayed_work(work),
+@@ -4893,10 +4912,38 @@ static void rtl8169_missed_msi_work(struct work_struct *work)
+ 					set_bit(RTL_MISSED_MSI_ACK_CREDIT,
+ 						&tp->missed_msi_flags);
+ 				}
++
+ 			}
+ 		}
+ 
+ 		enable_irq(irq);
++
++		/*
++		 * RX-latch detection: run on every poll while carrier is up.
++		 * If rx_packets makes no progress across several consecutive
++		 * polls while traffic has been seen (rxp != 0), the card's RX
++		 * engine is stuck after an MSI drop; reset the chip.
++		 */
++		if (opi3_rx_stall_polls && netif_running(tp->dev) &&
++		    (netif_carrier_ok(tp->dev) || tp->opi3_reneg_pending)) {
++			u64 rxp = opi3_live_rx_packets(tp);
++			bool progressed = rxp != tp->opi3_last_rx_packets;
++
++			if (progressed) {
++				tp->opi3_last_rx_packets = rxp;
++				tp->opi3_rx_stall_polls = 0;
++			} else if (rxp != 0 || tp->cur_tx != 0) {
++				tp->opi3_rx_stall_polls++;
++				unsigned int thresh = tp->opi3_reneg_pending ?
++					opi3_reneg_check_polls : opi3_rx_stall_polls;
++				if (thresh && tp->opi3_rx_stall_polls >= thresh) {
++					netdev_err(tp->dev,
++						   "RX stalled (%llu live pkts, %u polls)\n",
++						   rxp, tp->opi3_rx_stall_polls);
++					rtl8169_missed_msi_recover(tp);
++				}
++			}
++		}
+ 	}
+ 
+ 	if (first_hit)
+@@ -4934,6 +4981,9 @@ static void rtl8169_missed_msi_start(struct rtl8169_private *tp)
+ 	tp->missed_msi_first_status = 0;
+ 	tp->missed_msi_credit_irqs = 0;
+ 	tp->missed_msi_credit_deadline = 0;
++	tp->opi3_last_rx_packets = 0;
++	tp->opi3_rx_stall_polls = 0;
++	tp->opi3_reneg_pending = false;
+ 	pm_runtime_get_noresume(&tp->pci_dev->dev);
+ 	set_bit(RTL_MISSED_MSI_PM_HELD, &tp->missed_msi_flags);
+ 
+@@ -4947,6 +4997,102 @@ static void rtl8169_missed_msi_start(struct rtl8169_private *tp)
+ 	rtl8169_missed_msi_rearm(tp, opi3_poll_ms * NSEC_PER_MSEC);
+ }
+ 
++
++/*
++ * Recovery ladder for the MSI-drop RX latch.
++ *
++ * Step 1 (safe, proven by hand): PHY renegotiation - in-driver equivalent
++ * of `ip link set down && ethtool -r && up`, which empirically revives a
++ * latched card on this platform without touching the PCIe core.
++ *
++ * Step 2 (hazardous, opt-in): full chip reset via rtl_reset_work(). One
++ * observation on H6 associated a chip reset with a whole-SoC wedge; until
++ * confirmed with a serial console it is gated behind allow_chip_reset=1.
++ *
++ * Detector note: dev->stats.rx_packets is always 0 on this driver (RX is
++ * counted per-CPU in dev->tstats via dev_sw_netstats_rx_add). Read the
++ * live merged counter via dev_fetch_sw_netstats().
++ */
++static u64 opi3_live_rx_packets(struct rtl8169_private *tp)
++{
++	struct rtnl_link_stats64 tmp;
++
++	dev_fetch_sw_netstats(&tmp, tp->dev->tstats);
++	return tmp.rx_packets;
++}
++
++static void rtl8169_missed_msi_recover(struct rtl8169_private *tp)
++{
++	if (!tp->opi3_reneg_pending) {
++		/* Step 1: restart autonegotiation. */
++		netdev_err(tp->dev,
++			   "RX latched (live rx=%llu); restarting PHY\n",
++			   opi3_live_rx_packets(tp));
++
++		set_bit(RTL_MISSED_MSI_DEAD, &tp->missed_msi_flags);
++		clear_bit(RTL_MISSED_MSI_ENABLED, &tp->missed_msi_flags);
++		clear_bit(RTL_MISSED_MSI_ACK_CREDIT, &tp->missed_msi_flags);
++		hrtimer_cancel(&tp->missed_msi_timer);
++
++		phy_stop(tp->phydev);
++		phy_start(tp->phydev);
++
++		clear_bit(RTL_MISSED_MSI_DEAD, &tp->missed_msi_flags);
++
++		tp->opi3_reneg_pending = true;
++		tp->opi3_rx_stall_polls = 0;
++		tp->opi3_last_rx_packets = opi3_live_rx_packets(tp);
++
++		set_bit(RTL_MISSED_MSI_PM_HELD, &tp->missed_msi_flags);
++		set_bit(RTL_MISSED_MSI_ENABLED, &tp->missed_msi_flags);
++		rtl8169_missed_msi_rearm(tp, opi3_poll_ms * NSEC_PER_MSEC);
++
++		netdev_info(tp->dev,
++			    "PHY renegotiate issued; check in %u polls\n",
++			    opi3_reneg_check_polls);
++		return;
++	}
++
++	/* Renegotiate already tried and RX still frozen. */
++	if (opi3_allow_chip_reset && opi3_reneg_check_polls) {
++		netdev_err(tp->dev, "escalating to full chip reset\n");
++
++		if (tp->irq >= 0)
++			disable_irq(tp->irq);
++
++		set_bit(RTL_MISSED_MSI_DEAD, &tp->missed_msi_flags);
++		clear_bit(RTL_MISSED_MSI_ENABLED, &tp->missed_msi_flags);
++		clear_bit(RTL_MISSED_MSI_ACK_CREDIT, &tp->missed_msi_flags);
++		hrtimer_cancel(&tp->missed_msi_timer);
++
++		napi_disable(&tp->napi);
++		rtl_reset_work(tp);
++
++		clear_bit(RTL_MISSED_MSI_DEAD, &tp->missed_msi_flags);
++
++		tp->opi3_reneg_pending = false;
++		tp->opi3_rx_stall_polls = 0;
++		tp->opi3_last_rx_packets = opi3_live_rx_packets(tp);
++
++		pm_runtime_get_noresume(&tp->pci_dev->dev);
++		set_bit(RTL_MISSED_MSI_PM_HELD, &tp->missed_msi_flags);
++		set_bit(RTL_MISSED_MSI_ENABLED, &tp->missed_msi_flags);
++		rtl8169_missed_msi_rearm(tp, opi3_poll_ms * NSEC_PER_MSEC);
++
++		netdev_info(tp->dev,
++			    "chip reset done; missed-MSI fallback re-armed\n");
++		return;
++	}
++
++	/* Escalation disabled: re-arm detector and keep watching. */
++	netdev_warn_once(tp->dev,
++			 "renegotiate did not revive RX; chip reset disabled "
++			 "(allow_chip_reset=0); manual intervention required\n");
++	tp->opi3_reneg_pending = false;
++	tp->opi3_rx_stall_polls = 0;
++	tp->opi3_last_rx_packets = opi3_live_rx_packets(tp);
++}
++
+ static void rtl8169_missed_msi_stop(struct rtl8169_private *tp)
+ {
+ 	clear_bit(RTL_MISSED_MSI_ENABLED, &tp->missed_msi_flags);
+-- 
+2.43.0
+

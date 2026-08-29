@@ -1,7 +1,8 @@
-97a5d57e5a98d58efb6a76a55586379a4504a2e7f8163d1d2341a3e692d9d94c  0001-arm64-allwinner-h6-add-wrapped-pcie-support.patch
-269c01e20211a18e15c4eb5f4a3c906b5526d84419237abe72a9ec945b991fec  0002-arm64-dts-h6-assign-pcie-maxi-200mhz.patch
-20fc08faf3ba6952139cdce95ab10c09df6ef1e99ab82a863e668155a8bc8630  0003-r8169-shadow-rx-dma-addresses-and-stop-on-corruption.patch
-eed7f38e97123e42a9350fcab50670c577fe40932331342cc47c6cbc074bd8ed  0004-r8169-disable-endpoint-aspm-l0s-l1.patch
-688e60ba898f53d1f339d8954208f1691a92126ca0628634a2f76071e3a87259  0005-r8169-conventional-msi-only-for-rtl8168f.patch
-2427548a87fea0de7e41b7519f53294f5a0fa685410c5ee140fe0100b8845c2b  0006-r8169-vendor-timer-only-coalescing-for-rtl8168f.patch
-2ccbc878dcaaa244a0c7d397050b0fc4b9cf646b2224b4d5816c40959920ec4d  0007-r8169-missed-msi-fallback-for-rtl8168f.patch
+7156847ede70ea0164d6e35cf22d8f9c7e635a035ef4e066ef22f2e46938f097  0001-arm64-allwinner-H6-wrapped-PCIe-support-with-native-.patch
+a4c9e606e0791f4616fbeae45b33e5883f89213b64e21a8c067e3c57be21b764  0002-arm64-dts-h6-assign-PCIE_MAXI-to-200-MHz-for-the-wra.patch
+b803442dd227f78bf703023e0af8c2255ec1459790d3ddd78dbf204a8d387744  0003-r8169-shadow-RX-DMA-addresses-and-stop-DMA-on-descri.patch
+46ffd8b7e15b08e529aaf118727885c3d78dccbc516e4398cef6b49a9f3e577a  0004-r8169-disable-endpoint-PCIe-L0s-L1-link-states.patch
+d731330d75a21cb37d283f3e46625abda5f017db8b94a77b1ba498658298787c  0005-r8169-allocate-conventional-MSI-only-for-RTL8168F-MA.patch
+7067764c9d05a073198f61c3ffa44e431899153fabda176bba0d039af6e15809  0006-r8169-match-vendor-timer-only-interrupt-moderation-f.patch
+23d08b64dd16dcda1d8924203772aa6097b36bb8dfd04ad982b4ee8cd395be4e  0007-r8169-add-missed-MSI-TX-completion-polling-fallback-.patch
+15d895c3b8e8d1b25a4818c01cf43d46821d486204414de5189bbd319ada15ec  0008-r8169-auto-recover-from-MSI-drop-RX-latch-on-H6.patch

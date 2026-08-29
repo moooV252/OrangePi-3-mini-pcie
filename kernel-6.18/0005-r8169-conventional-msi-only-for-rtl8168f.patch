@@ -1,7 +1,7 @@
 From 5285f2a3bc74d60ee8a97edebdefd27fca57652c Mon Sep 17 00:00:00 2001
 From: Orange Pi 3 port <port@localhost>
 Date: Sun, 23 Aug 2026 12:53:24 +0900
-Subject: [PATCH 5/7] r8169: allocate conventional MSI only for RTL8168F (MAC
+Subject: [PATCH 5/8] r8169: allocate conventional MSI only for RTL8168F (MAC
  35/36)
 
 ---

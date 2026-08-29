@@ -1,7 +1,7 @@
 From 625fb58d3124996ef9e55b9edf45af0bb22f4b50 Mon Sep 17 00:00:00 2001
 From: Orange Pi 3 port <port@localhost>
 Date: Sun, 23 Aug 2026 12:53:24 +0900
-Subject: [PATCH 6/7] r8169: match vendor timer-only interrupt moderation for
+Subject: [PATCH 6/8] r8169: match vendor timer-only interrupt moderation for
  RTL8168F
 
 ---
